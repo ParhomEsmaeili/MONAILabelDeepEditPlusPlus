@@ -153,6 +153,12 @@ ubuntu_venv/
 sample-apps/*/logs
 sample-apps/*/train
 
+#data
+datasets
+
+#bundle 
+monaibundle
+
 # docs build
 docs/build
 docs/source/apidocs

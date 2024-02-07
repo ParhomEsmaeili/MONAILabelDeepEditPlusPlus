@@ -29,6 +29,11 @@ from monailabel.transform.cache import CacheTransformDatad
 from monailabel.transform.writer import ClassificationWriter, DetectionWriter, Writer
 from monailabel.utils.others.generic import device_list, device_map, name_to_device
 
+#####################################################################
+import numpy as np 
+import nibabel as nib
+import os
+
 logger = logging.getLogger(__name__)
 
 
@@ -143,7 +148,6 @@ class BasicInferTask(InferTask):
     def get_path(self, validate=True):
         if not self.path:
             return None
-
         paths = self.path
         for path in reversed(paths):
             if path:
@@ -501,18 +505,35 @@ class BasicInferTask(InferTask):
         """
 
         inferer = self.inferer(data)
+        #print(dir(self))
         logger.info(f"Inferer:: {device} => {inferer.__class__.__name__} => {inferer.__dict__}")
-
+        #print('hello i am here')
         network = self._get_network(device, data)
         if network:
             inputs = data[self.input_key]
+            # # print(self.input_key)
+            # # print('here comes data')
+            # # print(data)
+            # #print(inputs)
+            # print(inputs.size())
+            for i in range(inputs.size(dim=0)):
+                    placeholder_tensor = inputs.cpu()
+                    placeholder = np.array(placeholder_tensor[i])
+                    #print(placeholder)
+                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Inference_InputImages', str(i)+'.nii.gz'))
+
             inputs = inputs if torch.is_tensor(inputs) else torch.from_numpy(inputs)
             inputs = inputs[None] if convert_to_batch else inputs
             inputs = inputs.to(torch.device(device))
 
             with torch.no_grad():
                 outputs = inferer(inputs, network)
-
+            # print(outputs.size())
+            for i in range(outputs.size(dim=1)):
+                    placeholder_tensor = outputs[0].cpu()
+                    placeholder = np.array(placeholder_tensor[i])
+                    #print(placeholder)
+                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Inference_Images', str(i)+'.nii.gz'))
             if device.startswith("cuda"):
                 torch.cuda.empty_cache()
 
@@ -522,7 +543,7 @@ class BasicInferTask(InferTask):
                     outputs = outputs_d[0]
                 else:
                     outputs = outputs[0]
-
+            
             data[self.output_label_key] = outputs
         else:
             # consider them as callable transforms
@@ -621,7 +642,7 @@ class BasicInferTask(InferTask):
         if self.type == InferType.DETECTION:
             dw = DetectionWriter()
             return dw(data)
-
+        print('writer is here')
         writer = Writer(label=self.output_label_key, json=self.output_json_key)
         return writer(data)
 

@@ -1,0 +1,15 @@
+artifact_uri: file:///home/parhomesmaeili/MonaiLabel%20Deepedit%2B%2B%20Dev/MONAILabel/apps/radiology/model/deepeditplusplus_dynunet/train_01/mlruns/353765967385118914/e42fac57905a4254b34b59140355f986/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '353765967385118914'
+lifecycle_stage: active
+run_id: e42fac57905a4254b34b59140355f986
+run_name: run_20240130_184542
+run_uuid: e42fac57905a4254b34b59140355f986
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1706640344936
+status: 1
+tags: []
+user_id: unknown

@@ -114,6 +114,8 @@ def save_label(
     label_id = instance.datastore().save_label(image, label_file, tag, save_params)
     res = instance.on_save_label(image, label_id)
     res = res if res else {}
+    #print('here comes params')
+    #print(params)
     res.update(
         {
             "image": image,

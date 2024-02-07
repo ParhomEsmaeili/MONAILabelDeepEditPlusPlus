@@ -40,12 +40,14 @@ def status(all: bool = False, check_if_running: bool = False):
 def run(params: Optional[dict] = None, run_sync: Optional[bool] = False):
     instance: MONAILabelApp = app_instance()
     result = {}
+    print('sndfblsdfjsdlfsjflsidjfsoij')
     for model in instance.info()["trainers"]:
         request = {"model": model}
         if params and params.get(model):
             request.update(params[model])
         res, detail = AsyncTask.run("train", request=request, params=params, force_sync=run_sync, enqueue=True)
         result[model] = {"result": res, "detail": detail}
+    #logger.info(f"Train Request: {request}")
     return result
 
 
@@ -53,6 +55,7 @@ def run_model(
     model: str, params: Optional[dict] = None, run_sync: Optional[bool] = False, enqueue: Optional[bool] = False
 ):
     request = {"model": model} if model else {}
+    logger.info(f"Train Request: {request}")
     res, detail = AsyncTask.run("train", request=request, params=params, force_sync=run_sync, enqueue=enqueue)
     if res is None:
         raise HTTPException(status_code=429, detail=detail)

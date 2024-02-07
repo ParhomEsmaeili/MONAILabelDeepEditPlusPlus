@@ -229,13 +229,14 @@ class Main:
                 os.makedirs(os.path.dirname(output_dir), exist_ok=True)
             shutil.copytree(xyz_dir, output_dir, ignore=ignore)
             print(f"{args.name} is copied at: {output_dir}")
-
+            
     def action_start_server(self, args):
         self.start_server_validate_args(args)
         self.start_server_init_settings(args)
 
         log_config = init_log_config(args.log_config, args.app, "app.log", args.verbose)
-
+        print(args.uvicorn_app)
+      
         if args.dryrun:
             return
 

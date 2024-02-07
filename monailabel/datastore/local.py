@@ -683,6 +683,7 @@ class LocalDatastore(Datastore):
         def _write_to_file():
             logger.debug("+++ Datastore is updated...")
             self._ignore_event_config = True
+            print('hello')
             with open(self._datastore_config_path, "w") as f:
                 f.write(json.dumps(self._datastore.dict(exclude={"base_path"}), indent=2, default=str))
             self._config_ts = os.stat(self._datastore_config_path).st_mtime

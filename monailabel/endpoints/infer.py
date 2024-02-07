@@ -157,9 +157,11 @@ def run_inference(
         request["label"] = label_file
 
     config = instance.info().get("config", {}).get("infer", {})
+    
     request.update(config)
 
     p = json.loads(params) if params else {}
+    #print(params)
     request.update(p)
 
     if session_id:

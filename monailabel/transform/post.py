@@ -119,18 +119,21 @@ class Restored(MapTransform):
 
     def __call__(self, data):
         d = dict(data)
+        
         meta_dict = (
             d[self.ref_image].meta
             if d.get(self.ref_image) is not None and isinstance(d[self.ref_image], MetaTensor)
             else d.get(f"{self.ref_image}_{self.meta_key_postfix}", {})
         )
-
+	
         for idx, key in enumerate(self.keys):
             result = d[key]
+            print(result)
+            print(result.dtype)
             current_size = result.shape[1:] if self.has_channel else result.shape
             spatial_shape = meta_dict.get("spatial_shape", current_size)
             spatial_size = spatial_shape[-len(current_size) :]
-
+	
             # Undo Spacing
             if np.any(np.not_equal(current_size, spatial_size)):
                 resizer = Resize(spatial_size=spatial_size, mode=self.mode[idx])
@@ -153,13 +156,21 @@ class Restored(MapTransform):
                 new_pred = result * 0.0
                 for j, (label_name, idx) in enumerate(self.config_labels.items(), 1):
                     # Consider only labels different than background
+                    #print(label_name)
+                    #print(idx)
+                    #print(j)
                     if label_name != "background":
                         new_pred[result == j] = idx
                 result = new_pred
+            
+            print(meta_dict)
+            #print(result[0].shape)
+            #nib.save(nib.Nifti1Image(np.array(result[0].cpu()), None), '/home/parhomesmaeili/After Inverse Transforms/post_activations.nii.gz')
 
             d[key] = result if len(result.shape) <= 3 else result[0] if result.shape[0] == 1 else result
 
             meta = d.get(f"{key}_{self.meta_key_postfix}")
+            print(meta)
             if meta is None:
                 meta = dict()
                 d[f"{key}_{self.meta_key_postfix}"] = meta
