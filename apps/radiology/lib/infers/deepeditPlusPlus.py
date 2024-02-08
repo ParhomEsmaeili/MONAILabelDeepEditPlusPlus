@@ -12,7 +12,7 @@ import logging
 from typing import Callable, Sequence, Union
 
 from lib.transforms.transforms import GetCentroidsd
-from monai.apps.deepeditPlusPlus.transforms import (
+from monailabel.deepeditPlusPlus.transforms import (
     AddGuidanceFromPointsDeepEditd,
     AddGuidanceSignalDeepEditd,
     DiscardAddGuidanced,
@@ -38,11 +38,11 @@ from monailabel.interfaces.tasks.infer_v2 import InferType
 from monailabel.tasks.infer.basic_infer import BasicInferTask
 from monailabel.transform.post import Restored
 ##################################################
-from monai.transforms import LoadImage
-import torch
-import numpy as np
-import nibabel as nib 
-import os
+# from monai.transforms import LoadImage
+# import torch
+# import numpy as np
+# import nibabel as nib 
+# import os
 logger = logging.getLogger(__name__)
 
 
@@ -110,27 +110,6 @@ class DeepEditPlusPlus(BasicInferTask):
                 ),
             ]
             
-            # t.extend(
-            #     [
-            #         LoadImaged(keys="previous_seg", reader="ITKReader", image_only=False),
-            #         #here we load the previous segmentation and implement the pre-processing in a similar way to the original image.
-            #         EnsureChannelFirstd(keys="previous_seg"),
-            #         Orientationd(keys="previous_seg", axcodes="RAS"),
-            #         #ScaleIntensityRanged(keys="previous_seg", a_min=0, a_max=7, b_min=0.0, b_max=7.0, clip=True),
-            #         #actual code changes.. TODO: reorder so that the segmentation channels are separated until after downsampling, probably move the previous_seg parameter to the "keys" also..
-                    
-            #         #AddSegmentationInputChannels(keys=["image", "previous_seg"], label_names=self.labels, previous_seg_flag= True),
-
-            #         AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
-            #         Resized(keys=["image", "previous_seg"], spatial_size=self.spatial_size, mode=["area", "nearest"]),
-            #         #Resized(keys="previous_seg", spatial_size=self.spatial_size, mode="nearest")
-            #         ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
-            #         AddSegmentationInputChannels(keys=["image", "previous_seg"], label_names=self.labels, previous_seg_flag= True),
-            #         AddGuidanceSignalDeepEditd(
-            #             keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch, label_names = self.labels
-            #         ),
-            #     ]
-            # )
         else:
             t = [
             LoadImaged(keys="image", reader="ITKReader", image_only=False),
@@ -180,19 +159,12 @@ class DeepEditPlusPlus(BasicInferTask):
             Activationsd(keys="pred", softmax=True),
             AsDiscreted(keys="pred", argmax=True), #just after this, all the dimensions get squeezed into one channel.
             SqueezeDimd(keys="pred", dim=0),
-            ToNumpyd(keys="pred"),           #TODO PROBABLY UNDO?
-            #EnsureChannelFirstd(keys="pred"), #TODO PROBABLY REMOVE?
+            ToNumpyd(keys="pred"), 
             Restored(
                 keys="pred",
                 ref_image="image",
-                invert_orient = False,
                 config_labels=self.labels if data.get("restore_label_idx", False) else None, 
-                #TODO: remove invert_orient?
                 #TODO: When running the code in our experiments we need to make sure the request has this variable to be TRUE. Need to also change the UI/front end so it works with integer codes for representing labels, saving labels, instead of the indexing methods.
             ),
-            # SaveImaged(
-            #     keys="pred",
-            #     meta_keys= d["pred"].meta_dict 
-            # )
             GetCentroidsd(keys="pred", centroids_key="centroids"),
         ]

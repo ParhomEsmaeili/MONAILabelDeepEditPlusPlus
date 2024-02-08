@@ -13,8 +13,8 @@ import logging
 
 import torch
 from lib.transforms.transforms import NormalizeLabelsInDatasetd
-from monai.apps.deepeditPlusPlus.interaction import Interaction
-from monai.apps.deepeditPlusPlus.transforms import (
+from monailabel.deepeditPlusPlus.interaction import Interaction
+from monailabel.deepeditPlusPlus.transforms import (
     AddGuidanceSignalDeepEditd,
     AddInitialSeedPointMissingLabelsd,
     AddRandomGuidanceDeepEditd,
@@ -41,7 +41,7 @@ from monai.transforms import (
     ToTensord,
 )
 
-from monailabel.deepedit.handlers import TensorBoardImageHandler
+from monailabel.deepeditPlusPlus.handlers import TensorBoardImageHandler
 from monailabel.tasks.train.basic_train import BasicTrainTask, Context
 
 logger = logging.getLogger(__name__)
