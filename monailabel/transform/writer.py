@@ -23,6 +23,8 @@ from monai.data.image_writer import NibabelWriter
 from monailabel.utils.others.detection import create_slicer_detection_json
 from monailabel.utils.others.generic import file_ext
 from monailabel.utils.others.pathology import create_asap_annotations_xml, create_dsa_annotations_json
+######
+
 
 logger = logging.getLogger(__name__)
 
@@ -210,12 +212,12 @@ class Writer:
 
         output_file = None
         output_json = data.get(self.json, {})
-        print(write_to_file)
-        print(self.nibabel)
-        print(ext)
+        #print(write_to_file)
+        #print(self.nibabel)
+        #print(ext)
         if write_to_file:
             output_file = tempfile.NamedTemporaryFile(suffix=ext).name
-            print(output_file)
+            #print(output_file)
             logger.debug(f"Saving Image to: {output_file}")
 
             if self.is_multichannel_image(image_np):
@@ -227,16 +229,18 @@ class Writer:
                 labels = data.get("labels")
                 color_map = data.get("color_map")
                 logger.debug("Using write_seg_nrrd...")
-                print('it passes through here')
+        
                 write_seg_nrrd(image_np, output_file, dtype, affine, labels, color_map)
             # Issue with slicer:: https://discourse.itk.org/t/saving-non-orthogonal-volume-in-nifti-format/2760/22
             elif self.nibabel and ext and ext.lower() in [".nii", ".nii.gz"]:
                 logger.debug("Using MONAI write_nifti...")
-                print('actually is passes through here')
+                
                 write_nifti(image_np, output_file, affine=affine, output_dtype=dtype)
             else:
                 write_itk(image_np, output_file, affine if len(image_np.shape) > 2 else None, dtype, compress)
-                print('passes through final conditional')
+                write_itk(image_np, '/home/parhomesmaeili/Desktop/itksnapimage.nrrd', affine if len(image_np.shape) > 2 else None, dtype, compress)
+                #print('passes through final conditional')
+                #print(os.path.abspath(__file__))
         else:
             output_file = image_np
 

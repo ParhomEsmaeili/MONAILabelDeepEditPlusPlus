@@ -955,7 +955,7 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
             NotImplementedError: When the subclass does not override this method.
         """
         random_array = self.R.choice(list(self.label_names.values()), image.shape[1:])
-        print(np.unique(random_array, return_counts=True))
+        # print(np.unique(random_array, return_counts=True))
         return random_array
         
         #raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -976,7 +976,7 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
         
         
         if self.previous_seg_flag:
-            print('We are in the previous segmentation flag subloop')
+            # print('We are in the previous segmentation flag subloop')
             
             for index, key in enumerate(self.label_names.keys()):
                 # print(key)
@@ -988,14 +988,14 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
                 # TODO: Method below is for when we actually have segmentation images that will yield voxel values that match the integer codes.
                 
                 value = self.label_names[key]
-                print(key)
-                print(value)
+                # print(key)
+                # print(value)
                 output_signal.append(np.where(previous_seg == value, 1, 0)) #TODO: 
                 
             return np.stack(output_signal, dtype=np.float32)    
                 
         else:
-            print('we are in the non-previous segmentation flag subloop')
+            #print('we are in the non-previous segmentation flag subloop')
             #TODO Generate a HWD array where each voxel is randomly sampling uniformly from classes 1:k with probabilty 1/k. Use logical arrays to split into k channel tensors.
             random_array = self.randomize(image)
             
@@ -1016,13 +1016,18 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
             for key in self.key_iterator(d):
                 if key == "previous_seg":
                     previous_seg = d[key].squeeze()
-                    print(np.unique(previous_seg))
-                    print(previous_seg.shape)
         else:
             previous_seg = None 
-            print(previous_seg)
+            # print(previous_seg)
+        ###############################################################
+        # for key in self.key_iterator(d):
+        #     if key == "dummy_output":
+        #         dummy_output = d[key].squeeze()
+        #         nib.save(nib.Nifti1Image(np.array(dummy_output, dtype=np.float32), None), '/home/parhomesmaeili/Desktop/checkingdummyorientation.nii.gz')
+
+        ##################################################################
         for key in self.key_iterator(d):
-            print(key)
+            # print(key)
             if key == "image":
                 image = d[key]
                 
@@ -1032,7 +1037,7 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
                 
                 #TODO: label_names change this to fit the actual label name and check this matches with the order in the guidance dictionary.
                 signal = self._get_mask(image, previous_seg) 
-                print(signal.shape)
+                
                 tmp_image = np.concatenate([tmp_image, signal], axis=0, dtype=np.float32)
                 
                 for i in range(tmp_image.shape[0]):
@@ -1049,41 +1054,47 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
         return d
     
 
-class DebuggingIntegerCodes(MapTransform):
-    def __init__(
-        self, keys: KeysCollection, label_names: dict[str, int] | None = None, allow_missing_keys: bool = False
-    ):
-        """
-        Changing the integer codes of the previous_seg so that they match what SHOULD be the input for the purposes of debugging.
-        Changes to the UI should ensure this is deprecated. This should not be used for experiments since we will be using integer codes from config file
-        when storing information about the segmentations.
+# class DebuggingIntegerCodes(MapTransform):
+#     def __init__(
+#         self, keys: KeysCollection, label_names: dict[str, int] | None = None, allow_missing_keys: bool = False
+#     ):
+#         """
+#         Changing the integer codes of the previous_seg so that they match what SHOULD be the input for the purposes of debugging.
+#         Changes to the UI should ensure this is deprecated. This should not be used for experiments since we will be using integer codes from config file
+#         when storing information about the segmentations.
 
-        Args:
-            keys: The ``keys`` parameter will be used to get and set the actual data item to transform
-            label_names: all label names
-        """
-        super().__init__(keys, allow_missing_keys)
+#         Args:
+#             keys: The ``keys`` parameter will be used to get and set the actual data item to transform
+#             label_names: all label names
+#         """
+#         super().__init__(keys, allow_missing_keys)
 
-        self.label_names = label_names or {}
+#         self.label_names = label_names or {}
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
-        d: dict = dict(data)
-        for key in self.key_iterator(d):
-            # Dictionary containing new label numbers
-            label = np.zeros(d[key].shape)
+#     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+#         d: dict = dict(data)
+#         for key in self.key_iterator(d):
+#             # Dictionary containing new label numbers
+#             label = np.zeros(d[key].shape)
 
-            for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
+#             for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
                 
-                if key_label != "background":
-                    #new_label_names[key_label] = idx
-                    label[d[key] == idx] = val_label 
-                if key_label == "background":
-                    continue 
+#                 if key_label != "background":
+#                     #new_label_names[key_label] = idx
+#                     label[d[key] == idx] = val_label 
+#                 if key_label == "background":
+#                     continue 
 
 
-            #d["label_names"] = new_label_names
-            if isinstance(d[key], MetaTensor):
-                d[key].array = label
-            else:
-                d[key] = label
-        return d
+#             print(np.unique(d["image"]))
+#             print(np.unique(d["previous_seg"]))
+#             print(np.unique(d["dummy_output"]))
+
+#             print(d["image"].meta)
+#             print(d["previous_seg"].meta)
+#             print(d["dummy_output"].meta)
+#             if isinstance(d[key], MetaTensor):
+#                 d[key].array = label
+#             else:
+#                 d[key] = label
+#         return d

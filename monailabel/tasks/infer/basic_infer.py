@@ -528,7 +528,8 @@ class BasicInferTask(InferTask):
 
             with torch.no_grad():
                 outputs = inferer(inputs, network)
-            # print(outputs.size())
+            print(outputs.size())
+            print(np.unique(outputs))
             for i in range(outputs.size(dim=1)):
                     placeholder_tensor = outputs[0].cpu()
                     placeholder = np.array(placeholder_tensor[i])
@@ -642,7 +643,7 @@ class BasicInferTask(InferTask):
         if self.type == InferType.DETECTION:
             dw = DetectionWriter()
             return dw(data)
-        print('writer is here')
+    
         writer = Writer(label=self.output_label_key, json=self.output_json_key)
         return writer(data)
 

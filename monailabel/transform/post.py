@@ -128,8 +128,6 @@ class Restored(MapTransform):
 	
         for idx, key in enumerate(self.keys):
             result = d[key]
-            print(result)
-            print(result.dtype)
             current_size = result.shape[1:] if self.has_channel else result.shape
             spatial_shape = meta_dict.get("spatial_shape", current_size)
             spatial_size = spatial_shape[-len(current_size) :]
@@ -163,18 +161,15 @@ class Restored(MapTransform):
                         new_pred[result == j] = idx
                 result = new_pred
             
-            print(meta_dict)
-            #print(result[0].shape)
-            #nib.save(nib.Nifti1Image(np.array(result[0].cpu()), None), '/home/parhomesmaeili/After Inverse Transforms/post_activations.nii.gz')
-
             d[key] = result if len(result.shape) <= 3 else result[0] if result.shape[0] == 1 else result
 
             meta = d.get(f"{key}_{self.meta_key_postfix}")
-            print(meta)
+           
             if meta is None:
                 meta = dict()
                 d[f"{key}_{self.meta_key_postfix}"] = meta
             meta["affine"] = meta_dict.get("original_affine")
+            print(meta_dict)
 
         return d
 

@@ -172,6 +172,10 @@ def run_inference(
 
     logger.info(f"Infer Request: {request}")
     result = instance.infer(request)
+    #print(result)
+    #print('output in endpoints/infer')
+    #print(output)
+    #print('background task is {}'.format(background_tasks))
     if result is None:
         raise HTTPException(status_code=500, detail="Failed to execute infer")
 
