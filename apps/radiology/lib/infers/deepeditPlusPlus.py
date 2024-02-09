@@ -85,16 +85,12 @@ class DeepEditPlusPlus(BasicInferTask):
         self.load_strict = False
 
     def pre_transforms(self, data=None):
-
-        print(self.type)
         
         if self.type == InferType.DEEPEDIT:
-            #data['dummy_output'] = '/home/parhomesmaeili/Desktop/OriginalDeepEditDummyOutput.nrrd'
-            data["previous_seg"] = '/home/parhomesmaeili/Desktop/OriginalDeepEditDummyOutput.nrrd' #'/home/parhomesmaeili/Desktop/spleen_10.nii.gz'
+            data["previous_seg"] = '/home/parhomesmaeili/Desktop/OriginalDeepEditDummyOutput.nrrd' 
             t = [
                 LoadImaged(keys=["image", "previous_seg"], reader="ITKReader", image_only=False), 
-                #TODO: This method of loading in previous_seg probably should only be used for experiments, if even that, since it would require the segmentations to be saved before every update for it to work.
-                #TODO: probably better method would just put the full segmentation mask + metadata as one of the variables in the request?
+                #TODO: Previous_seg should ideally be the path to a temporary file that gets generated when the update button is hit?
                 
                 #DebuggingIntegerCodes(keys=["previous_seg"], label_names=self.labels),
                 #this is just a debugging shortcut TODO DELETE THIS LATER!.

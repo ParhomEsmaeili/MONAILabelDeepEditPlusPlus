@@ -673,9 +673,7 @@ class AddGuidanceFromPointsDeepEditd(Transform):
     def __call__(self, data):
         d = dict(data)
         meta_dict_key = self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"
-        # extract affine matrix from metadata
-        #print('here comes meta in addpointsfromguidancedeepeditd')
-        #print(d["image"].meta)
+
         if isinstance(d[self.ref_image], MetaTensor):
             meta_dict = d[self.ref_image].meta  # type: ignore
         elif meta_dict_key in d:
@@ -691,17 +689,12 @@ class AddGuidanceFromPointsDeepEditd(Transform):
         # Assume channel is first and depth is last CHWD
         original_shape = meta_dict["spatial_shape"]
         current_shape = list(d[self.ref_image].shape)[1:]
-        # print(original_shape)
-        # print(current_shape)
-        # print('im in addpointsfromguidance')
-        
-        # in here we assume the depth dimension is in the last dimension of "original_shape" and "current_shape"
+
         factor = np.array(current_shape) / original_shape
 
         # Creating guidance for all clicks
         all_guidances = {}
         for key_label in self.label_names.keys():
-            print(key_label)
             clicks = d.get(key_label, [])
             clicks = list(np.array(clicks).astype(int))
             all_guidances[key_label] = self._apply(clicks, factor)
@@ -976,37 +969,20 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
         
         
         if self.previous_seg_flag:
-            # print('We are in the previous segmentation flag subloop')
             
             for index, key in enumerate(self.label_names.keys()):
-                # print(key)
-                # print(index)
-                
-                # output_signal.append(np.where(previous_seg == index, 1, 0)) #Here the index represents the corresponding value of the voxel value because that is our assumption with the input request. For code which is used to split the segmentation according to the actual integer codes, see below:
-                
-                #print(np.where(self.previous_seg == index, 1, 0).shape)
-                # TODO: Method below is for when we actually have segmentation images that will yield voxel values that match the integer codes.
-                
-                value = self.label_names[key]
-                # print(key)
-                # print(value)
-                output_signal.append(np.where(previous_seg == value, 1, 0)) #TODO: 
+                output_signal.append(np.where(previous_seg == self.label_names[key], 1, 0)) 
                 
             return np.stack(output_signal, dtype=np.float32)    
                 
         else:
-            #print('we are in the non-previous segmentation flag subloop')
             #TODO Generate a HWD array where each voxel is randomly sampling uniformly from classes 1:k with probabilty 1/k. Use logical arrays to split into k channel tensors.
             random_array = self.randomize(image)
             
             for key in self.label_names.keys():
-                value = self.label_names[key]
-                output_signal.append(np.where(random_array == value, 1, 0))
+                output_signal.append(np.where(random_array == self.label_names[key], 1, 0))
                 
             return np.stack(output_signal, dtype=np.float32)
-            
-        #this is just a placeholder function for now, we need an actual function that generates 1/k probability masks? for now they are just empty tensors.
-        return signal
         
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
@@ -1018,14 +994,6 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
                     previous_seg = d[key].squeeze()
         else:
             previous_seg = None 
-            # print(previous_seg)
-        ###############################################################
-        # for key in self.key_iterator(d):
-        #     if key == "dummy_output":
-        #         dummy_output = d[key].squeeze()
-        #         nib.save(nib.Nifti1Image(np.array(dummy_output, dtype=np.float32), None), '/home/parhomesmaeili/Desktop/checkingdummyorientation.nii.gz')
-
-        ##################################################################
         for key in self.key_iterator(d):
             # print(key)
             if key == "image":
@@ -1034,15 +1002,13 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
                 tmp_image = image[0: 0 + len(self.label_names), ...]
         
                 # Getting signal
-                
-                #TODO: label_names change this to fit the actual label name and check this matches with the order in the guidance dictionary.
                 signal = self._get_mask(image, previous_seg) 
                 
                 tmp_image = np.concatenate([tmp_image, signal], axis=0, dtype=np.float32)
                 
-                for i in range(tmp_image.shape[0]):
-                    placeholder = tmp_image[i]
-                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/AddingSegmentationChannels', str(i)+'.nii.gz'))
+                # for i in range(tmp_image.shape[0]):
+                #     placeholder = tmp_image[i]
+                #     nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/AddingSegmentationChannels', str(i)+'.nii.gz'))
 
                 if isinstance(d[key], MetaTensor):
                     d[key].array = tmp_image

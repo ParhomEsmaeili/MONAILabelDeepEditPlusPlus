@@ -169,7 +169,7 @@ class Restored(MapTransform):
                 meta = dict()
                 d[f"{key}_{self.meta_key_postfix}"] = meta
             meta["affine"] = meta_dict.get("original_affine")
-            print(meta_dict)
+            
 
         return d
 

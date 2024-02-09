@@ -511,16 +511,12 @@ class BasicInferTask(InferTask):
         network = self._get_network(device, data)
         if network:
             inputs = data[self.input_key]
-            # # print(self.input_key)
-            # # print('here comes data')
-            # # print(data)
-            # #print(inputs)
-            # print(inputs.size())
-            for i in range(inputs.size(dim=0)):
-                    placeholder_tensor = inputs.cpu()
-                    placeholder = np.array(placeholder_tensor[i])
-                    #print(placeholder)
-                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Inference_InputImages', str(i)+'.nii.gz'))
+            
+            # for i in range(inputs.size(dim=0)):
+            #         placeholder_tensor = inputs.cpu()
+            #         placeholder = np.array(placeholder_tensor[i])
+            #         #print(placeholder)
+            #         nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Inference_InputImages', str(i)+'.nii.gz'))
 
             inputs = inputs if torch.is_tensor(inputs) else torch.from_numpy(inputs)
             inputs = inputs[None] if convert_to_batch else inputs
@@ -528,13 +524,13 @@ class BasicInferTask(InferTask):
 
             with torch.no_grad():
                 outputs = inferer(inputs, network)
-            print(outputs.size())
-            print(np.unique(outputs))
-            for i in range(outputs.size(dim=1)):
-                    placeholder_tensor = outputs[0].cpu()
-                    placeholder = np.array(placeholder_tensor[i])
-                    #print(placeholder)
-                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Inference_Images', str(i)+'.nii.gz'))
+            # print(outputs.size())
+            # print(np.unique(outputs))
+            # for i in range(outputs.size(dim=1)):
+            #         placeholder_tensor = outputs[0].cpu()
+            #         placeholder = np.array(placeholder_tensor[i])
+            #         #print(placeholder)
+            #         nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Inference_Images', str(i)+'.nii.gz'))
             if device.startswith("cuda"):
                 torch.cuda.empty_cache()
 
