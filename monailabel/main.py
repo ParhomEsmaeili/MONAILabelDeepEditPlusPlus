@@ -235,7 +235,7 @@ class Main:
         self.start_server_init_settings(args)
 
         log_config = init_log_config(args.log_config, args.app, "app.log", args.verbose)
-        print(args.uvicorn_app)
+        
       
         if args.dryrun:
             return

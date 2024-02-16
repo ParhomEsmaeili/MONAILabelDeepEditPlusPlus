@@ -40,11 +40,15 @@ from monailabel.utils.others.planner import HeuristicPlanner
 
 logger = logging.getLogger(__name__)
 
+#######################
+from os.path import dirname as up
 
 class MyApp(MONAILabelApp):
     def __init__(self, app_dir, studies, conf):
         self.model_dir = os.path.join(app_dir, "model")
-        
+        print('app dir {}'.format(app_dir))
+        print('studies {}'.format(studies))
+        print('conf {}'.format(conf))
         configs = {}
         for c in get_class_names(lib.configs, "TaskConfig"):
             name = c.split(".")[-2].lower()
@@ -288,20 +292,19 @@ def main():
         force=True,
     )
 
-    home = str(Path.home())
-    studies = f"{home}/Dataset/Radiology"
-
+    base_directory = up(up(up(__file__)))
+   
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--studies", default=studies)
-    parser.add_argument("-m", "--model", default="segmentation")
-    parser.add_argument("-t", "--test", default="batch_infer", choices=("train", "infer", "batch_infer"))
+    parser.add_argument("-s", "--studies", default= "datasets/Task09_Spleen/imagesTr")
+    parser.add_argument("-m", "--model", default="deepeditplusplus")
+    parser.add_argument("-t", "--test", default="train") #"batch_infer", choices=("train", "infer", "batch_infer"))
     args = parser.parse_args()
 
-    app_dir = os.path.dirname(__file__)
-    studies = args.studies
+    app_dir = up(__file__)
+    studies = os.path.join(base_directory, args.studies)
     conf = {
         "models": args.model,
-        "preload": "false",
+        "use_pretrained_model": "False",
     }
 
     app = MyApp(app_dir, studies, conf)
@@ -345,29 +348,29 @@ def main():
             }
         )
 
-        # app.batch_infer(
-        #     request={
-        #         "model": "pipeline",
-        #         "multi_gpu": False,
-        #         "save_label": True,
-        #         "label_tag": "original",
-        #         "max_workers": 1,
-        #         "max_batch_size": 0,
-        #     }
-        # )
-
         return
 
     # Train
     app.train(
         request={
             "model": args.model,
-            "max_epochs": 10,
-            "dataset": "Dataset",  # PersistentDataset, CacheDataset
+            "max_epochs": 50,
+            "dataset": "SmartCacheDataset", #"Dataset",  # PersistentDataset, CacheDataset
+            "early_stop_patience":-1,
             "train_batch_size": 1,
             "val_batch_size": 1,
-            "multi_gpu": False,
-            "val_split": 0.1,
+            "multi_gpu": True,
+            "gpus":"all",
+            "val_split": 0.2,
+            "dataloader":"ThreadDataLoader",
+            "tracking":"mlflow",
+            "tracking_uri":"",
+            "tracking_experiment_name":"",
+            "client_id":"user-xyz",
+            "name":"train_01",
+            "pretrained" : False,
+            "device": "NVIDIA GeForce RTX 4090",
+            "local_rank": 0
         },
     )
 
@@ -375,4 +378,5 @@ def main():
 if __name__ == "__main__":
     # export PYTHONPATH=~/Projects/MONAILabel:`pwd`
     # python main.py
+    print(monailabel.__version__)
     main()

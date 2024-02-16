@@ -12,7 +12,7 @@
 import logging
 
 import torch
-from lib.transforms.transforms import NormalizeLabelsInDatasetd
+#from lib.transforms.transforms import NormalizeLabelsInDatasetd
 from monailabel.deepeditPlusPlus.interaction import Interaction
 from monailabel.deepeditPlusPlus.transforms import (
     AddGuidanceSignalDeepEditd,
@@ -21,6 +21,7 @@ from monailabel.deepeditPlusPlus.transforms import (
     FindAllValidSlicesMissingLabelsd,
     FindDiscrepancyRegionsDeepEditd,
     SplitPredsLabeld,
+    NormalizeLabelsInDatasetd
 )
 from monai.handlers import MeanDice, from_engine
 from monai.inferers import SimpleInferer
@@ -112,11 +113,11 @@ class DeepEditPlusPlus(BasicTrainTask):
             RandRotate90d(keys=("image", "label"), prob=0.10, max_k=3),
             RandShiftIntensityd(keys="image", offsets=0.10, prob=0.50),
             Resized(keys=("image", "label"), spatial_size=self.spatial_size, mode=("area", "nearest")),
-            # Transforms for click simulation
+            # Transforms for click simulation (depracated)
             FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
             AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
             AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
-            #
+            
             ToTensord(keys=("image", "label")),
             SelectItemsd(keys=("image", "label", "guidance", "label_names")),
         ]
@@ -141,10 +142,10 @@ class DeepEditPlusPlus(BasicTrainTask):
             # This transform may not work well for MR images
             ScaleIntensityRanged(keys=("image"), a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
             Resized(keys=("image", "label"), spatial_size=self.spatial_size, mode=("area", "nearest")),
-            # Transforms for click simulation
-            FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
-            AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
-            AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
+            # Transforms for click simulation (DEPRACATED)
+            # FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
+            # AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
+            # AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
             #
             ToTensord(keys=("image", "label")),
             SelectItemsd(keys=("image", "label", "guidance", "label_names")),

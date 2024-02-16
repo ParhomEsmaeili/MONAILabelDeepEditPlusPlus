@@ -32,6 +32,8 @@ class AsyncTask:
 
         params = params if params is not None else {}
         request.update(params)
+        #print('this is the final request that is passed through to app_instance.mode(request)')
+        #print(request)
 
         # Support bundle/scripts over windows
         bundle_path = instance.bundle_path(request.get("model"))

@@ -430,7 +430,7 @@ class BasicTrainTask(TrainTask):
 
     def __call__(self, request, datastore: Datastore):
         logger.info(f"Train Request (input): {request}")
-
+        
         req = copy.deepcopy(self._config)
         req.update(copy.deepcopy(request))
         req["run_id"] = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -597,6 +597,7 @@ class BasicTrainTask(TrainTask):
                 logger.warning("No Validation Key Metric has been defined to enable Early Stopper")
 
     def pre_process(self, request, datastore: Datastore):
+        print(datastore.datalist())
         return datastore.datalist()
 
     def get_cache_dir(self, request):

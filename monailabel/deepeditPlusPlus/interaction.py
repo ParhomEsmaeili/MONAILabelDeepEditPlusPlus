@@ -67,16 +67,8 @@ class Interaction:
 
         if np.random.choice([True, False], p=[self.deepgrow_probability, 1 - self.deepgrow_probability]):
             for j in range(self.max_interactions):
-                inputs, _ = engine.prepare_batch(batchdata)
-            #     print(inputs.size())
-            #    # for tensor in 
-            #     print(inputs[0].size()) 
-            #     for i in range(inputs.size(dim=1)):
-            #         placeholder_tensor = inputs[0]
-            #         placeholder = np.array(placeholder_tensor[i])
-            #         #print(placeholder)
-            #         nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Pictures', str(i)+'.nii.gz'))
-                print('hello i am here now!')
+                inputs, _ = engine.prepare_batch(batchdata) #I believe this just executes the remaining pre-transforms which are Randomizable and so not executed during the DatasetCache step.
+
                 inputs = inputs.to(engine.state.device)
 
                 engine.fire_event(IterationEvents.INNER_ITERATION_STARTED)

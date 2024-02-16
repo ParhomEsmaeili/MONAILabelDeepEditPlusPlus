@@ -80,7 +80,7 @@ class DeepEditPlusPlus(TaskConfig):
         self.network = (
             UNETR(
                 spatial_dims=3,
-                in_channels= 2 * len(self.labels) + self.number_intensity_ch,
+                in_channels= len(self.labels) + self.number_intensity_ch, #TODO: change back # 2 * len(self.labels) + self.number_intensity_ch,
                 out_channels=len(self.labels),
                 img_size=self.spatial_size,
                 feature_size=64,
@@ -94,7 +94,7 @@ class DeepEditPlusPlus(TaskConfig):
             if network == "unetr"
             else DynUNet(
                 spatial_dims=3,
-                in_channels= 2 * len(self.labels) + self.number_intensity_ch,
+                in_channels= len(self.labels) + self.number_intensity_ch, #TODO: change back # 2 * len(self.labels) + self.number_intensity_ch,
                 out_channels=len(self.labels),
                 kernel_size=[3, 3, 3, 3, 3, 3],
                 strides=[1, 2, 2, 2, 2, [2, 2, 1]],
@@ -108,7 +108,7 @@ class DeepEditPlusPlus(TaskConfig):
         self.network_with_dropout = (
             UNETR(
                 spatial_dims=3,
-                in_channels= 2 * len(self.labels) + self.number_intensity_ch,
+                in_channels= len(self.labels) + self.number_intensity_ch, #TODO: change back # 2 * len(self.labels) + self.number_intensity_ch,
                 out_channels=len(self.labels),
                 img_size=self.spatial_size,
                 feature_size=64,
@@ -123,7 +123,7 @@ class DeepEditPlusPlus(TaskConfig):
             if network == "unetr"
             else DynUNet(
                 spatial_dims=3,
-                in_channels= 2 * len(self.labels) + self.number_intensity_ch,
+                in_channels= len(self.labels) + self.number_intensity_ch, #TODO: change back #2 * len(self.labels) + self.number_intensity_ch,
                 out_channels=len(self.labels),
                 kernel_size=[3, 3, 3, 3, 3, 3],
                 strides=[1, 2, 2, 2, 2, [2, 2, 1]],

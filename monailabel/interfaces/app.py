@@ -136,7 +136,7 @@ class MONAILabelApp:
         if self.studies.startswith("http://") or self.studies.startswith("https://"):
             self.studies = self.studies.rstrip("/").strip()
             return self.init_remote_datastore()
-
+        
         return LocalDatastore(
             self.studies,
             extensions=settings.MONAI_LABEL_DATASTORE_FILE_EXT,
@@ -271,7 +271,7 @@ class MONAILabelApp:
             )
 
         task = self._infers.get(model)
-        print(task)
+    
         if not task:
             raise MONAILabelException(
                 MONAILabelError.INVALID_INPUT,
@@ -424,6 +424,7 @@ class MONAILabelApp:
             )
 
         request = copy.deepcopy(request)
+        
         result = task(request, self.datastore())
 
         # Run all scoring methods
