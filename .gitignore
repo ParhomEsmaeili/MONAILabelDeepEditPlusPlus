@@ -153,6 +153,10 @@ ubuntu_venv/
 sample-apps/*/logs
 sample-apps/*/train
 
+#model 
+apps/radiology/model
+apps/radiology/logs
+
 #data
 datasets
 

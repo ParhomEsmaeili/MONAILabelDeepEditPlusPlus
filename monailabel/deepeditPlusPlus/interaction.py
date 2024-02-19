@@ -23,8 +23,8 @@ from monai.transforms import Compose
 from monai.utils.enums import CommonKeys
 
 ##################################################
-import nibabel as nib
-import os 
+# import nibabel as nib
+# import os 
 
 class Interaction:
     """
@@ -48,6 +48,7 @@ class Interaction:
     def __init__(
         self,
         deepgrow_probability: float,
+        deepedit_probability: float,
         transforms: Sequence[Callable] | Callable,
         train: bool,
         label_names: None | dict[str, int] = None,
@@ -55,6 +56,7 @@ class Interaction:
         max_interactions: int = 1,
     ) -> None:
         self.deepgrow_probability = deepgrow_probability
+        self.deepedit_probability = deepedit_probability
         self.transforms = Compose(transforms) if not isinstance(transforms, Compose) else transforms
         self.train = train
         self.label_names = label_names
@@ -64,11 +66,28 @@ class Interaction:
     def __call__(self, engine: SupervisedTrainer | SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
+        
+         #TODO: Is it okay to move the inner loop fire event wherever? Cannot find a handler which should actually be used when it is fired..
 
-        if np.random.choice([True, False], p=[self.deepgrow_probability, 1 - self.deepgrow_probability]):
+        #TODO: Here we implement the logic for the AutoSeg and DeepGrow modes. 
+        if np.random.choice([True, False], p=[self.deepgrow_probability, 1 - self.deepgrow_probability]): #TODO: should this be done as a subclass of the randomizable class, so that we can use fixed seeds for this also?
+            #Here we run the loop for Deepgrow
+            pass 
+        else:
+            #Here we run the loop for generating autoseg prompt channels
+
+            # zero out input guidance channels
+            batchdata_list = decollate_batch(batchdata, detach=True)
+            for i in range(len(batchdata_list[0][CommonKeys.IMAGE]), 2 * len(batchdata_list[0][CommonKeys.IMAGE])):
+                batchdata_list[0][CommonKeys.IMAGE][i] *= 0
+            batchdata = list_data_collate(batchdata_list)
+
+        #TODO: Here we use the initial segmentations to generate a prediction (our new previous seg) and generate a new set of inputs with this updated previous seg, along with points generated from the discrepancy regions? 
+        
+        if np.random.choice([True, False], p  = [self.deepedit_probability, 1 - self.deepedit_probability]):
+    
             for j in range(self.max_interactions):
-                inputs, _ = engine.prepare_batch(batchdata) #I believe this just executes the remaining pre-transforms which are Randomizable and so not executed during the DatasetCache step.
-
+                inputs, _ = engine.prepare_batch(batchdata)
                 inputs = inputs.to(engine.state.device)
 
                 engine.fire_event(IterationEvents.INNER_ITERATION_STARTED)
@@ -92,12 +111,6 @@ class Interaction:
 
                 batchdata = list_data_collate(batchdata_list)
                 engine.fire_event(IterationEvents.INNER_ITERATION_COMPLETED)
-        else:
-            # zero out input guidance channels
-            batchdata_list = decollate_batch(batchdata, detach=True)
-            for i in range(1, len(batchdata_list[0][CommonKeys.IMAGE])):
-                batchdata_list[0][CommonKeys.IMAGE][i] *= 0
-            batchdata = list_data_collate(batchdata_list)
 
         # first item in batch only
         engine.state.batch = batchdata

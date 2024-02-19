@@ -57,8 +57,10 @@ class DeepEditPlusPlus(BasicTrainTask):
         spatial_size=(128, 128, 64),
         target_spacing=(1.0, 1.0, 1.0),
         number_intensity_ch=1,
-        deepgrow_probability_train=0.4,
+        deepgrow_probability_train= 0.5,
+        deepedit_probability_train= 1/3, #TODO: With what probability do we split up the loads?
         deepgrow_probability_val=1.0,
+        deepedit_probability_val=1.0, #TODO: Why are these probability values for the validation 1.0? This would mean that validation occurs solely on the editing mode.
         debug_mode=False,
         **kwargs,
     ):
@@ -67,7 +69,9 @@ class DeepEditPlusPlus(BasicTrainTask):
         self.target_spacing = target_spacing
         self.number_intensity_ch = number_intensity_ch
         self.deepgrow_probability_train = deepgrow_probability_train
+        self.deepedit_probability_train = deepedit_probability_train
         self.deepgrow_probability_val = deepgrow_probability_val
+        self.deepedit_probability_val = deepedit_probability_val 
         self.debug_mode = debug_mode
 
         super().__init__(model_dir, description, **kwargs)
@@ -114,12 +118,12 @@ class DeepEditPlusPlus(BasicTrainTask):
             RandShiftIntensityd(keys="image", offsets=0.10, prob=0.50),
             Resized(keys=("image", "label"), spatial_size=self.spatial_size, mode=("area", "nearest")),
             # Transforms for click simulation (depracated)
-            FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
-            AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
-            AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
+            # FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
+            # AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
+            # AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
             
             ToTensord(keys=("image", "label")),
-            SelectItemsd(keys=("image", "label", "guidance", "label_names")),
+            SelectItemsd(keys=("image", "label", "label_names")), #"guidance", "label_names")),
         ]
 
     def train_post_transforms(self, context: Context):
@@ -146,9 +150,9 @@ class DeepEditPlusPlus(BasicTrainTask):
             # FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
             # AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
             # AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
-            #
+            
             ToTensord(keys=("image", "label")),
-            SelectItemsd(keys=("image", "label", "guidance", "label_names")),
+            SelectItemsd(keys=("image", "label", "label_names")), #"guidance", "label_names")),
         ]
 
     def val_inferer(self, context: Context):
@@ -157,6 +161,7 @@ class DeepEditPlusPlus(BasicTrainTask):
     def train_iteration_update(self, context: Context):
         return Interaction(
             deepgrow_probability=self.deepgrow_probability_train,
+            deepedit_probability= self.deepedit_probability_train, 
             transforms=self.get_click_transforms(context),
             click_probability_key="probability",
             train=True,
@@ -166,6 +171,7 @@ class DeepEditPlusPlus(BasicTrainTask):
     def val_iteration_update(self, context: Context):
         return Interaction(
             deepgrow_probability=self.deepgrow_probability_val,
+            deepedit_probability= self.deepedit_probability_val,
             transforms=self.get_click_transforms(context),
             click_probability_key="probability",
             train=False,

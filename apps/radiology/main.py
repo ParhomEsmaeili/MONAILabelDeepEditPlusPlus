@@ -378,5 +378,4 @@ def main():
 if __name__ == "__main__":
     # export PYTHONPATH=~/Projects/MONAILabel:`pwd`
     # python main.py
-    print(monailabel.__version__)
     main()
