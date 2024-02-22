@@ -21,7 +21,8 @@ from monailabel.deepeditPlusPlus.transforms import (
     FindAllValidSlicesMissingLabelsd,
     FindDiscrepancyRegionsDeepEditd,
     SplitPredsLabeld,
-    NormalizeLabelsInDatasetd
+    NormalizeLabelsInDatasetd,
+    AddSegmentationInputChannels
 )
 from monai.handlers import MeanDice, from_engine
 from monai.inferers import SimpleInferer
@@ -100,6 +101,7 @@ class DeepEditPlusPlus(BasicTrainTask):
             ),
             AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
             #
+            AddSegmentationInputChannels(keys=["image"], previous_seg_name = "pred", number_intensity_ch = self.number_intensity_ch, label_names= None, previous_seg_flag= True),
             ToTensord(keys=("image", "label")),
         ]
 
@@ -107,7 +109,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         return [
             LoadImaged(keys=("image", "label"), reader="ITKReader", image_only=False),
             EnsureChannelFirstd(keys=("image", "label")),
-            NormalizeLabelsInDatasetd(keys="label", label_names=self._labels),
+            NormalizeLabelsInDatasetd(keys="label", label_names=self._labels), 
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             # This transform may not work well for MR images
             ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
@@ -118,10 +120,11 @@ class DeepEditPlusPlus(BasicTrainTask):
             RandShiftIntensityd(keys="image", offsets=0.10, prob=0.50),
             Resized(keys=("image", "label"), spatial_size=self.spatial_size, mode=("area", "nearest")),
             # Transforms for click simulation (depracated)
-            # FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
-            # AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
-            # AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
-            
+            FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
+            AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
+            AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
+            AddSegmentationInputChannels(keys="image", previous_seg_name= None, number_intensity_ch = self.number_intensity_ch, label_names=None, previous_seg_flag= False),
+
             ToTensord(keys=("image", "label")),
             SelectItemsd(keys=("image", "label", "label_names")), #"guidance", "label_names")),
         ]
@@ -146,10 +149,11 @@ class DeepEditPlusPlus(BasicTrainTask):
             # This transform may not work well for MR images
             ScaleIntensityRanged(keys=("image"), a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
             Resized(keys=("image", "label"), spatial_size=self.spatial_size, mode=("area", "nearest")),
-            # Transforms for click simulation (DEPRACATED)
-            # FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
-            # AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
-            # AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
+            # Transforms for click simulation 
+            FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
+            AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
+            AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
+            AddSegmentationInputChannels(keys="image", number_intensity_ch = self.number_intensity_ch, label_names=self._labels, previous_seg_flag= False),
             
             ToTensord(keys=("image", "label")),
             SelectItemsd(keys=("image", "label", "label_names")), #"guidance", "label_names")),
@@ -161,11 +165,12 @@ class DeepEditPlusPlus(BasicTrainTask):
     def train_iteration_update(self, context: Context):
         return Interaction(
             deepgrow_probability=self.deepgrow_probability_train,
-            deepedit_probability= self.deepedit_probability_train, 
+            deepedit_probability=self.deepedit_probability_train,
+            num_intensity_channel=self.number_intensity_ch,  
             transforms=self.get_click_transforms(context),
             click_probability_key="probability",
             train=True,
-            label_names=self._labels,
+            #label_names=self._labels,
         )
 
     def val_iteration_update(self, context: Context):
@@ -175,7 +180,7 @@ class DeepEditPlusPlus(BasicTrainTask):
             transforms=self.get_click_transforms(context),
             click_probability_key="probability",
             train=False,
-            label_names=self._labels,
+            #label_names=self._labels,
         )
 
     def train_key_metric(self, context: Context):

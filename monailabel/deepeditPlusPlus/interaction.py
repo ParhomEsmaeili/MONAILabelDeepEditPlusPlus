@@ -23,8 +23,8 @@ from monai.transforms import Compose
 from monai.utils.enums import CommonKeys
 
 ##################################################
-# import nibabel as nib
-# import os 
+import nibabel as nib
+import os 
 
 class Interaction:
     """
@@ -49,26 +49,27 @@ class Interaction:
         self,
         deepgrow_probability: float,
         deepedit_probability: float,
+        num_intensity_channel: int,
         transforms: Sequence[Callable] | Callable,
         train: bool,
-        label_names: None | dict[str, int] = None,
+        #label_names: None | dict[str, int] = None,
         click_probability_key: str = "probability",
         max_interactions: int = 1,
     ) -> None:
         self.deepgrow_probability = deepgrow_probability
         self.deepedit_probability = deepedit_probability
+        self.num_intensity_channel = num_intensity_channel
         self.transforms = Compose(transforms) if not isinstance(transforms, Compose) else transforms
         self.train = train
-        self.label_names = label_names
+        #self.label_names = label_names
         self.click_probability_key = click_probability_key
         self.max_interactions = max_interactions
 
     def __call__(self, engine: SupervisedTrainer | SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        
-         #TODO: Is it okay to move the inner loop fire event wherever? Cannot find a handler which should actually be used when it is fired..
 
+        label_names = batchdata["label_names"]
         #TODO: Here we implement the logic for the AutoSeg and DeepGrow modes. 
         if np.random.choice([True, False], p=[self.deepgrow_probability, 1 - self.deepgrow_probability]): #TODO: should this be done as a subclass of the randomizable class, so that we can use fixed seeds for this also?
             #Here we run the loop for Deepgrow
@@ -78,7 +79,7 @@ class Interaction:
 
             # zero out input guidance channels
             batchdata_list = decollate_batch(batchdata, detach=True)
-            for i in range(len(batchdata_list[0][CommonKeys.IMAGE]), 2 * len(batchdata_list[0][CommonKeys.IMAGE])):
+            for i in range(self.num_intensity_channel, self.num_intensity_channel + len(label_names)):
                 batchdata_list[0][CommonKeys.IMAGE][i] *= 0
             batchdata = list_data_collate(batchdata_list)
 
@@ -100,7 +101,7 @@ class Interaction:
                     else:
                         predictions = engine.inferer(inputs, engine.network)
                 batchdata.update({CommonKeys.PRED: predictions})
-
+                
                 # decollate/collate batchdata to execute click transforms
                 batchdata_list = decollate_batch(batchdata, detach=True)
                 for i in range(len(batchdata_list)):
@@ -114,4 +115,14 @@ class Interaction:
 
         # first item in batch only
         engine.state.batch = batchdata
+
+        inputs, _ = engine.prepare_batch(batchdata)
+
+        
+        for i in range(inputs.size(dim=1)):
+            placeholder_tensor = inputs[0]
+            placeholder = np.array(placeholder_tensor[i])
+            #print(placeholder)
+            nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Pictures', str(i)+'.nii.gz'))
+
         return engine._iteration(engine, batchdata)  # type: ignore[arg-type]

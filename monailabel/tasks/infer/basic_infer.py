@@ -512,11 +512,11 @@ class BasicInferTask(InferTask):
         if network:
             inputs = data[self.input_key]
             
-            # for i in range(inputs.size(dim=0)):
-            #         placeholder_tensor = inputs.cpu()
-            #         placeholder = np.array(placeholder_tensor[i])
-            #         #print(placeholder)
-            #         nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Inference_InputImages', str(i)+'.nii.gz'))
+            for i in range(inputs.size(dim=0)):
+                    placeholder_tensor = inputs.cpu()
+                    placeholder = np.array(placeholder_tensor[i])
+                    #print(placeholder)
+                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Inference_InputImages', str(i)+'.nii.gz'))
 
             inputs = inputs if torch.is_tensor(inputs) else torch.from_numpy(inputs)
             inputs = inputs[None] if convert_to_batch else inputs

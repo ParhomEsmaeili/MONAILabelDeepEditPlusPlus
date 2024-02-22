@@ -68,7 +68,7 @@ class DiscardAddGuidanced(MapTransform):
                 (len(self.label_names), image.shape[-3], image.shape[-2], image.shape[-1]), dtype=np.float32
             )
             if image.shape[0] == self.number_intensity_ch + 2 * len(self.label_names):
-                image[self.number_intensity_ch + len(self.label_names):, ...] = signal
+                image[self.number_intensity_ch: self.number_intensity_ch + len(self.label_names), ...] = signal
             else:
                 image = np.concatenate([image, signal], axis=0)
         return image
@@ -251,7 +251,7 @@ class AddGuidanceSignalDeepEditd(MapTransform):
         for key in self.key_iterator(d):
             if key == "image":
                 image = d[key]
-                tmp_image = image[0 : 0 + self.number_intensity_ch + len(self.label_names), ...]
+                tmp_image = image[0 : 0 + self.number_intensity_ch, ...]
                 guidance = d[self.guidance]
                 #print(d)
                 #print(guidance)
@@ -403,6 +403,7 @@ class AddInitialSeedPointDeepEditd(Randomizable, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
         d: dict = dict(data)
+        
         for key in self.key_iterator(d):
             if key == "label":
                 label_guidances = {}
@@ -464,6 +465,8 @@ class FindDiscrepancyRegionsDeepEditd(MapTransform):
         for key in self.key_iterator(d):
             if key == "label":
                 all_discrepancies = {}
+                print(np.unique(d[key]))
+                print(np.unique(d["pred"]))
                 for _, (key_label, val_label) in enumerate(d["label_names"].items()):
                     if key_label != "background":
                         # Taking single label
@@ -584,24 +587,31 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
         d: dict = dict(data)
-        guidance = d[self.guidance_key]
+        d[self.guidance_key] = {} 
+    
         discrepancy = d[self.discrepancy]
         self.randomize(data)
         if self._will_interact:
-            # Convert all guidance to lists so new guidance can be easily appended
+            # Convert all guidance to lists so new guidance can be easily appended. These two loops are kept separate since we need an instantiated set of guidance lists for the current add_guidance function.
             for key_label in d["label_names"].keys():
-                tmp_gui = guidance[key_label]
-                tmp_gui = tmp_gui.tolist() if isinstance(tmp_gui, np.ndarray) else tmp_gui
-                tmp_gui = json.loads(tmp_gui) if isinstance(tmp_gui, str) else tmp_gui
-                self.guidance[key_label] = [j for j in tmp_gui if -1 not in j]
+                
+                self.guidance[key_label] = [] #This means that we can completely reset the guidance list that was initially provided for generating intial segmentations.
+                
+                # else:
+                #     tmp_gui = guidance[key_label]
+                #     tmp_gui = tmp_gui.tolist() if isinstance(tmp_gui, np.ndarray) else tmp_gui
+                #     tmp_gui = json.loads(tmp_gui) if isinstance(tmp_gui, str) else tmp_gui
+                #     self.guidance[key_label] = [j for j in tmp_gui if -1 not in j] #This -1 logic deletes all the initial seeds that are not legitimate (i.e. the default set ones which had values of -1)
 
             # Add guidance according to discrepancy
             for key_label in d["label_names"].keys():
+                
                 # Add guidance based on discrepancy
                 self.add_guidance(self.guidance[key_label], discrepancy[key_label], d["label_names"], d["label"])
-
+            
             # Checking the number of clicks
             num_clicks = random.randint(1, 10)
+            
             counter = 0
             keep_guidance = []
             while True:
@@ -623,6 +633,7 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
                 if len(keep_guidance) == len(d["label_names"].keys()):
                     logger.info(f"Number of simulated clicks: {counter}")
                     break
+        logger.info(f"Final Guidance points generated: {self.guidance}")
         d[self.guidance_key] = self.guidance  # Update the guidance
         return d
 
@@ -800,7 +811,7 @@ class AddInitialSeedPointMissingLabelsd(Randomizable, MapTransform):
         if sid is not None and dimensions == 3:
             dims = 2
             label = label[0][..., sid][np.newaxis]  # Assume channel is first and depth is last CHWD
-
+        
         # THERE MAY BE MULTIPLE BLOBS FOR SINGLE LABEL IN THE SELECTED SLICE
         label = (label > 0.5).astype(np.float32)
         # measure.label: Label connected regions of an integer array - Two pixels are connected
@@ -928,12 +939,14 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
 
     inputs: label_names 
     '''
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, label_names: dict | None = None, previous_seg_flag: bool = False, previous_seg: torch.Tensor = None):
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, previous_seg_name:str | None = None, number_intensity_ch : int = 1, label_names: dict | None = None, previous_seg_flag: bool = False, previous_seg: torch.Tensor = None):
         super().__init__(keys, allow_missing_keys)
         
+        self.previous_seg_name = previous_seg_name
+        self.number_intensity_ch = number_intensity_ch
         self.label_names = label_names or {}
         self.previous_seg_flag = previous_seg_flag
-        self.previous_seg = previous_seg 
+        #self.previous_seg = previous_seg 
     
     def randomize(self, image):
         """
@@ -956,21 +969,19 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
 
     def _get_mask(self, image, previous_seg):
         '''
-        get the mask according to the previous_Segmentation_flag, if deepEdit then it is the previous segmentation, if it is the other two modes then it should
+        get the mask according to the previous_Segmentation_flag, if in the Editing mode then it is the previous segmentation, if it is the other two modes (AutoSeg/Growing From Prompts) then it should
         be randomly generated..
 
-        previous segmentation is assumed to be a single tensor or None, not k-channels separated by class, for DeepEdit this function splits the input image. we assume that the tensor has discrete values which represent the integer codes for the classes (discrete) (CURRENT METHOD DOESNT USE CONFIG INTEGER CODES LIKE THE SAVED IMAGES.).
+        previous segmentation is assumed to be a single tensor or None, not k-channels separated by class, for Editing this function splits the input image. we assume that the tensor has discrete values which represent the integer codes for the classes (discrete) (CURRENT METHOD DOESNT USE CONFIG INTEGER CODES LIKE THE SAVED IMAGES.).
         
         currently, self.labels key:values are class:integer codes, but the previous segmentation image is imported with values of 0 - k-1, instead of with the correct integer codes(hence the currently implementation for the DeepEdit loop)
 
         '''
-        dimensions = 3 if len(image.shape) > 3 else 2
         output_signal = [] #initialise the list which we will concatenate to. 
-        
         
         if self.previous_seg_flag:
             
-            for index, key in enumerate(self.label_names.keys()):
+            for key in self.label_names.keys():
                 output_signal.append(np.where(previous_seg == self.label_names[key], 1, 0)) 
                 
             return np.stack(output_signal, dtype=np.float32)    
@@ -988,18 +999,26 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
         d: dict = dict(data)
 
-        if self.previous_seg_flag:
-            for key in self.key_iterator(d):
-                if key == "previous_seg":
-                    previous_seg = d[key].squeeze()
-        else:
-            previous_seg = None 
         for key in self.key_iterator(d):
-            # print(key)
             if key == "image":
                 image = d[key]
                 
-                tmp_image = image[0: 0 + len(self.label_names), ...]
+                #load in the "previous seg" if required.
+                if self.previous_seg_flag: #If in inference, where the previous segmentation should still be a 4D tensor:  
+                    if len(d[self.previous_seg_name].shape) == 4:
+                        previous_seg = d[self.previous_seg_name].squeeze()
+                    elif len(d[self.previous_seg_name].shape) ==3: #If in training, where the previous segmentation (pred) is a 3D array..?)
+                        previous_seg = d[self.previous_seg_name]
+                else:
+                    previous_seg = None 
+
+                #if label names is not inputted when instantiating the class, use the label names from the dictionary.
+                if self.label_names:
+                    pass
+                else:
+                    self.label_names = d["label_names"]    
+                
+                tmp_image = image[0 : self.number_intensity_ch + len(self.label_names), ...]
         
                 # Getting signal
                 signal = self._get_mask(image, previous_seg) 

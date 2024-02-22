@@ -597,7 +597,6 @@ class BasicTrainTask(TrainTask):
                 logger.warning("No Validation Key Metric has been defined to enable Early Stopper")
 
     def pre_process(self, request, datastore: Datastore):
-        print(datastore.datalist())
         return datastore.datalist()
 
     def get_cache_dir(self, request):

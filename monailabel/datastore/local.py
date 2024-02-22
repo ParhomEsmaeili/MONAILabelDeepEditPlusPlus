@@ -245,6 +245,7 @@ class LocalDatastore(Datastore):
 
         ds = []
         for k, v in self._datastore.filter_by_tag(tag).items():
+            
             ds.append(
                 {
                     "image": os.path.realpath(os.path.join(image_path, self._filename(k, v.image.ext))),

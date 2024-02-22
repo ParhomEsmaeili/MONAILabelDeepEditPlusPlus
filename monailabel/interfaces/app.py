@@ -308,8 +308,7 @@ class MONAILabelApp:
             result_file_name, result_json = task(request)
 
         label_id = None
-        #print(result_file_name)
-        #print(result_json)
+        
         if result_file_name and os.path.exists(result_file_name):
             tag = request.get("label_tag", DefaultLabelTag.ORIGINAL)
             save_label = request.get("save_label", False)

@@ -212,9 +212,7 @@ class Writer:
 
         output_file = None
         output_json = data.get(self.json, {})
-        #print(write_to_file)
-        #print(self.nibabel)
-        #print(ext)
+        
         if write_to_file:
             output_file = tempfile.NamedTemporaryFile(suffix=ext).name
             #print(output_file)
@@ -238,7 +236,7 @@ class Writer:
                 write_nifti(image_np, output_file, affine=affine, output_dtype=dtype)
             else:
                 write_itk(image_np, output_file, affine if len(image_np.shape) > 2 else None, dtype, compress)
-                write_itk(image_np, '/home/parhomesmaeili/Desktop/itksnapimage.nrrd', affine if len(image_np.shape) > 2 else None, dtype, compress)
+                #write_itk(image_np, '/home/parhomesmaeili/Desktop/itksnapimage.nrrd', affine if len(image_np.shape) > 2 else None, dtype, compress)
                 #print('passes through final conditional')
                 #print(os.path.abspath(__file__))
         else:

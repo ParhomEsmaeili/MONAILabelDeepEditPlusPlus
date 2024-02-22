@@ -87,7 +87,7 @@ class DeepEditPlusPlus(BasicInferTask):
     def pre_transforms(self, data=None):
         
         if self.type == InferType.DEEPEDIT:
-            data["previous_seg"] = '/home/parhomesmaeili/Desktop/OriginalDeepEditDummyOutput.nrrd' 
+            data["previous_seg"] = '/home/parhomesmaeili/Desktop/Label which is in the config file format/OriginalDeepEditDummyOutput.nrrd' 
             t = [
                 LoadImaged(keys=["image", "previous_seg"], reader="ITKReader", image_only=False), 
                 #TODO: Previous_seg should ideally be the path to a temporary file that gets generated when the update button is hit?
@@ -101,10 +101,10 @@ class DeepEditPlusPlus(BasicInferTask):
                 AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
                 Resized(keys=["image", "previous_seg"], spatial_size=self.spatial_size, mode=["area", "nearest"]),
                 ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
-                AddSegmentationInputChannels(keys=["image", "previous_seg"], label_names=self.labels, previous_seg_flag= True),
                 AddGuidanceSignalDeepEditd(
                     keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch, label_names = self.labels
                 ),
+                AddSegmentationInputChannels(keys=["image"], previous_seg_name="previous_seg", number_intensity_ch = self.number_intensity_ch, label_names=self.labels, previous_seg_flag= True),
             ]
             
         else:
@@ -122,10 +122,10 @@ class DeepEditPlusPlus(BasicInferTask):
                         AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
                         Resized(keys="image", spatial_size=self.spatial_size, mode="area"),
                         ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
-                        AddSegmentationInputChannels(keys="image", label_names=self.labels, previous_seg_flag= False),
                         AddGuidanceSignalDeepEditd(
                             keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch, label_names = self.labels
                         ),
+                        AddSegmentationInputChannels(keys="image", number_intensity_ch = self.number_intensity_ch, label_names=self.labels, previous_seg_flag= False),
                     ]
                 )
             
@@ -133,10 +133,10 @@ class DeepEditPlusPlus(BasicInferTask):
                 t.extend(
                     [
                         Resized(keys="image", spatial_size=self.spatial_size, mode="area"),
-                        AddSegmentationInputChannels(keys="image", label_names=self.labels, previous_seg_flag= False),
                         DiscardAddGuidanced(
                             keys="image", label_names=self.labels, number_intensity_ch=self.number_intensity_ch
                         ),
+                        AddSegmentationInputChannels(keys="image", number_intensity_ch = self.number_intensity_ch, label_names=self.labels, previous_seg_flag= False),
                     ]
                 )
         
