@@ -124,7 +124,8 @@ class TensorBoardImageHandler:
             .split("/")[-1]
             .split(".")[0]
         )
-
+        print(filename)
+        print('baaaaaaaaaaaaaaaaaaaah')
         input_tensor = self.batch_transform(engine.state.batch)[0]["image"]
 
         # IMAGE

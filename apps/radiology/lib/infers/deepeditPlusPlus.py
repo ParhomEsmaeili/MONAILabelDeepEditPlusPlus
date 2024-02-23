@@ -104,7 +104,7 @@ class DeepEditPlusPlus(BasicInferTask):
                 AddGuidanceSignalDeepEditd(
                     keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch, label_names = self.labels
                 ),
-                AddSegmentationInputChannels(keys=["image"], previous_seg_name="previous_seg", number_intensity_ch = self.number_intensity_ch, label_names=self.labels, previous_seg_flag= True),
+                AddSegmentationInputChannels(keys=["image"], previous_seg_name="previous_seg", number_intensity_ch = self.number_intensity_ch, label_names=self.labels, previous_seg_flag= True)
             ]
             
         else:
@@ -150,7 +150,7 @@ class DeepEditPlusPlus(BasicInferTask):
         return []  # Self-determine from the list of pre-transforms provided
 
     def post_transforms(self, data=None) -> Sequence[Callable]:
-        print(data["pred"].shape)
+        
         return [
             EnsureTyped(keys="pred", device=data.get("device") if data else None),
             Activationsd(keys="pred", softmax=True),

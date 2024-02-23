@@ -15,7 +15,7 @@ from collections.abc import Callable, Sequence
 
 import numpy as np
 import torch
-
+import logging 
 from monai.data import decollate_batch, list_data_collate
 from monai.engines import SupervisedEvaluator, SupervisedTrainer
 from monai.engines.utils import IterationEvents
@@ -25,6 +25,8 @@ from monai.utils.enums import CommonKeys
 ##################################################
 import nibabel as nib
 import os 
+
+logger = logging.getLogger(__name__)
 
 class Interaction:
     """
@@ -54,7 +56,7 @@ class Interaction:
         train: bool,
         #label_names: None | dict[str, int] = None,
         click_probability_key: str = "probability",
-        max_interactions: int = 1,
+        max_interactions: int = 1, #2, #1,
     ) -> None:
         self.deepgrow_probability = deepgrow_probability
         self.deepedit_probability = deepedit_probability
@@ -70,23 +72,25 @@ class Interaction:
             raise ValueError("Must provide batch data for current iteration.")
 
         label_names = batchdata["label_names"]
-        #TODO: Here we implement the logic for the AutoSeg and DeepGrow modes. 
+
         if np.random.choice([True, False], p=[self.deepgrow_probability, 1 - self.deepgrow_probability]): #TODO: should this be done as a subclass of the randomizable class, so that we can use fixed seeds for this also?
             #Here we run the loop for Deepgrow
-            pass 
+            logger.info("Grow from prompts Inner Subloop")
+        
         else:
             #Here we run the loop for generating autoseg prompt channels
-
+            logger.info("AutoSegmentation Inner Subloop")
             # zero out input guidance channels
             batchdata_list = decollate_batch(batchdata, detach=True)
             for i in range(self.num_intensity_channel, self.num_intensity_channel + len(label_names)):
                 batchdata_list[0][CommonKeys.IMAGE][i] *= 0
             batchdata = list_data_collate(batchdata_list)
+            
 
-        #TODO: Here we use the initial segmentations to generate a prediction (our new previous seg) and generate a new set of inputs with this updated previous seg, along with points generated from the discrepancy regions? 
+        #Here we use the initial segmentations to generate a prediction (our new previous seg) and generate a new set of inputs with this updated previous seg.
         
         if np.random.choice([True, False], p  = [self.deepedit_probability, 1 - self.deepedit_probability]):
-    
+            logger.info("Editing mode Inner Subloop")
             for j in range(self.max_interactions):
                 inputs, _ = engine.prepare_batch(batchdata)
                 inputs = inputs.to(engine.state.device)
@@ -109,6 +113,12 @@ class Interaction:
                         (1.0 - ((1.0 / self.max_interactions) * j)) if self.train else 1.0
                     )
                     batchdata_list[i] = self.transforms(batchdata_list[i])
+
+                for i in range(batchdata_list[0][CommonKeys.IMAGE].size(dim=0)):
+                    placeholder_tensor = batchdata_list[0][CommonKeys.IMAGE]
+                    placeholder = np.array(placeholder_tensor[i])
+                    #print(placeholder)
+                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/TrainingInnerLoop', str(i)+'.nii.gz'))
 
                 batchdata = list_data_collate(batchdata_list)
                 engine.fire_event(IterationEvents.INNER_ITERATION_COMPLETED)

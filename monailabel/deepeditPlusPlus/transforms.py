@@ -248,25 +248,35 @@ class AddGuidanceSignalDeepEditd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
         d: dict = dict(data)
-        for key in self.key_iterator(d):
-            if key == "image":
-                image = d[key]
-                tmp_image = image[0 : 0 + self.number_intensity_ch, ...]
-                guidance = d[self.guidance]
-                #print(d)
-                #print(guidance)
-                #print(guidance.keys())
-                for key_label in guidance.keys():
-                    # Getting signal based on guidance
-                    signal = self._get_signal(image, guidance[key_label])
-                    tmp_image = np.concatenate([tmp_image, signal], axis=0)
-                    if isinstance(d[key], MetaTensor):
-                        d[key].array = tmp_image
-                    else:
-                        d[key] = tmp_image
-                return d
-            else:
-                print("This transform only applies to image key")
+        
+        if "will_interact" in d.keys():
+            #If there a "will_interact" entry in dict then use the one from the data dictionary. This is intended to be used for the inner loop of training.
+            will_interact = d["will_interact"]
+        else: 
+            #If there is not, then use the default that it will interact. This is used for the pre-transforms and inference, since we always want guidance to be added
+            will_interact = True 
+            
+
+        if will_interact:
+            for key in self.key_iterator(d):
+                if key == "image":
+                    image = d[key]
+                    tmp_image = image[0 : 0 + self.number_intensity_ch, ...]
+                    #logger.info(f"Dimensions of Image Pre-Guidance are {tmp_image.shape}")
+                    guidance = d[self.guidance]
+                    
+                    for key_label in guidance.keys():
+                        # Getting signal based on guidance
+                        signal = self._get_signal(image, guidance[key_label])
+                        #logger.info(f"Guidance signal dimensions are {signal.shape}")
+                        tmp_image = np.concatenate([tmp_image, signal], axis=0)
+                        if isinstance(d[key], MetaTensor):
+                            d[key].array = tmp_image
+                        else:
+                            d[key] = tmp_image
+                    return d
+                else:
+                    print("This transform only applies to image key")
         return d
 
 
@@ -465,8 +475,7 @@ class FindDiscrepancyRegionsDeepEditd(MapTransform):
         for key in self.key_iterator(d):
             if key == "label":
                 all_discrepancies = {}
-                print(np.unique(d[key]))
-                print(np.unique(d["pred"]))
+                
                 for _, (key_label, val_label) in enumerate(d["label_names"].items()):
                     if key_label != "background":
                         # Taking single label
@@ -522,7 +531,7 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
         self.guidance_key = guidance
         self.discrepancy = discrepancy
         self.probability = probability
-        self._will_interact = None
+        self.will_interact = None
         self.is_pos: bool | None = None
         self.is_other: bool | None = None
         self.default_guidance = None
@@ -530,7 +539,7 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
 
     def randomize(self, data=None):
         probability = data[self.probability]
-        self._will_interact = self.R.choice([True, False], p=[probability, 1.0 - probability])
+        self.will_interact = self.R.choice([True, False], p=[probability, 1.0 - probability])
 
     def find_guidance(self, discrepancy):
         distance = distance_transform_cdt(discrepancy).flatten()
@@ -587,11 +596,15 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
         d: dict = dict(data)
-        d[self.guidance_key] = {} 
-    
+        
         discrepancy = d[self.discrepancy]
+        d[self.guidance_key] = {} 
         self.randomize(data)
-        if self._will_interact:
+
+        d["will_interact"] = self.will_interact
+
+        if self.will_interact:
+
             # Convert all guidance to lists so new guidance can be easily appended. These two loops are kept separate since we need an instantiated set of guidance lists for the current add_guidance function.
             for key_label in d["label_names"].keys():
                 
@@ -627,14 +640,15 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
                             if key_label not in keep_guidance:
                                 self.guidance[key_label] = []
                         logger.info(f"Number of simulated clicks: {counter}")
+                        logger.info(f"Final Guidance points generated: {self.guidance}")
                         break
 
                 # Breaking once all labels are covered
                 if len(keep_guidance) == len(d["label_names"].keys()):
                     logger.info(f"Number of simulated clicks: {counter}")
+                    logger.info(f"Final Guidance points generated: {self.guidance}")
                     break
-        logger.info(f"Final Guidance points generated: {self.guidance}")
-        d[self.guidance_key] = self.guidance  # Update the guidance
+            d[self.guidance_key] = self.guidance  # Update the guidance
         return d
 
 
@@ -935,11 +949,10 @@ class FindAllValidSlicesMissingLabelsd(MapTransform):
 ##################################################################################################################################################
 class AddSegmentationInputChannels(Randomizable, MapTransform):
     '''
-    Generates the additional input channels to concatenate with the image, and before the guidance channels.
+    Generates the additional channels to concatenate with the image tensor after the guidance channels, representing the "previous segmentation" split by class.
 
-    inputs: label_names 
     '''
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, previous_seg_name:str | None = None, number_intensity_ch : int = 1, label_names: dict | None = None, previous_seg_flag: bool = False, previous_seg: torch.Tensor = None):
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, previous_seg_name:str | None = None, number_intensity_ch : int = 1, label_names: dict | None = None, previous_seg_flag: bool = False):
         super().__init__(keys, allow_missing_keys)
         
         self.previous_seg_name = previous_seg_name
@@ -999,43 +1012,54 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
         d: dict = dict(data)
 
-        for key in self.key_iterator(d):
-            if key == "image":
-                image = d[key]
-                
-                #load in the "previous seg" if required.
-                if self.previous_seg_flag: #If in inference, where the previous segmentation should still be a 4D tensor:  
-                    if len(d[self.previous_seg_name].shape) == 4:
-                        previous_seg = d[self.previous_seg_name].squeeze()
-                    elif len(d[self.previous_seg_name].shape) ==3: #If in training, where the previous segmentation (pred) is a 3D array..?)
-                        previous_seg = d[self.previous_seg_name]
-                else:
-                    previous_seg = None 
+        if "will_interact" in d.keys():
+            #If there a "will_interact" entry in dict then use the one from the data dictionary. This is intended to be used for the inner loop of training.
+            will_interact = d["will_interact"]
+        else: 
+            #If there is not, then use the default that it will interact. This is used for the pre-transforms and inference, since we always want guidance to be added
+            will_interact = True
 
-                #if label names is not inputted when instantiating the class, use the label names from the dictionary.
-                if self.label_names:
-                    pass
-                else:
-                    self.label_names = d["label_names"]    
-                
-                tmp_image = image[0 : self.number_intensity_ch + len(self.label_names), ...]
-        
-                # Getting signal
-                signal = self._get_mask(image, previous_seg) 
-                
-                tmp_image = np.concatenate([tmp_image, signal], axis=0, dtype=np.float32)
-                
-                # for i in range(tmp_image.shape[0]):
-                #     placeholder = tmp_image[i]
-                #     nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/AddingSegmentationChannels', str(i)+'.nii.gz'))
+        if will_interact:
+            for key in self.key_iterator(d):
+                if key == "image":
+                    image = d[key]
+                    
+                    n_dims = len(image[0].shape)
+                    
+                    if self.previous_seg_flag: #If in inference for example , where the previous segmentation should still be a (n + 1)D tensor where n = spatial dimensions of image:  
+                        if len(d[self.previous_seg_name].shape) == n_dims + 1:
+                            previous_seg = d[self.previous_seg_name].squeeze()
+                        elif len(d[self.previous_seg_name].shape) == n_dims: #If the previous segmentation is already an n * D tensor where n = spatial dimensions of image
+                            previous_seg = d[self.previous_seg_name]
+                    else:
+                        previous_seg = None 
 
-                if isinstance(d[key], MetaTensor):
-                    d[key].array = tmp_image
+                    #if label names is not inputted when instantiating the class, use the label names from the data dictionary.
+                    if self.label_names:
+                        pass
+                    else:
+                        self.label_names = d["label_names"]    
+                    
+                    tmp_image = image[0 : self.number_intensity_ch + len(self.label_names), ...]
+            
+                    # Getting signal
+                    signal = self._get_mask(image, previous_seg) 
+
+                    #logger.info(f"Dimensions of the split channels are {signal.shape}")
+                    
+                    tmp_image = np.concatenate([tmp_image, signal], axis=0, dtype=np.float32)
+                    
+                    # for i in range(tmp_image.shape[0]):
+                    #     placeholder = tmp_image[i]
+                    #     nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/AddingSegmentationChannels', str(i)+'.nii.gz'))
+
+                    if isinstance(d[key], MetaTensor):
+                        d[key].array = tmp_image
+                    else:
+                        d[key] = tmp_image
+                    return d
                 else:
-                    d[key] = tmp_image
-                return d
-            else:
-                print("This transform only applies to image key")
+                    print("This transform only applies to image key")
         return d
     
 

@@ -62,7 +62,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         deepedit_probability_train= 1/3, #TODO: With what probability do we split up the loads?
         deepgrow_probability_val=1.0,
         deepedit_probability_val=1.0, #TODO: Why are these probability values for the validation 1.0? This would mean that validation occurs solely on the editing mode.
-        debug_mode=False,
+        debug_mode=True,
         **kwargs,
     ):
         self._network = network
@@ -153,7 +153,7 @@ class DeepEditPlusPlus(BasicTrainTask):
             FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
             AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
             AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
-            AddSegmentationInputChannels(keys="image", number_intensity_ch = self.number_intensity_ch, label_names=self._labels, previous_seg_flag= False),
+            AddSegmentationInputChannels(keys="image", previous_seg_name=None, number_intensity_ch = self.number_intensity_ch, label_names=None, previous_seg_flag= False),
             
             ToTensord(keys=("image", "label")),
             SelectItemsd(keys=("image", "label", "label_names")), #"guidance", "label_names")),
