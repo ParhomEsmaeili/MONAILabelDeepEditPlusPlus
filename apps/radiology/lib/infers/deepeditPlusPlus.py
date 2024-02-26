@@ -91,9 +91,6 @@ class DeepEditPlusPlus(BasicInferTask):
             t = [
                 LoadImaged(keys=["image", "previous_seg"], reader="ITKReader", image_only=False), 
                 #TODO: Previous_seg should ideally be the path to a temporary file that gets generated when the update button is hit?
-                
-                #DebuggingIntegerCodes(keys=["previous_seg"], label_names=self.labels),
-                #this is just a debugging shortcut TODO DELETE THIS LATER!?
                 EnsureChannelFirstd(keys=["image", "previous_seg"]),
                 Orientationd(keys=["image", "previous_seg"], axcodes="RAS"),
                 ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),

@@ -1031,8 +1031,11 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
                             previous_seg = d[self.previous_seg_name].squeeze()
                         elif len(d[self.previous_seg_name].shape) == n_dims: #If the previous segmentation is already an n * D tensor where n = spatial dimensions of image
                             previous_seg = d[self.previous_seg_name]
+                        #TODO: Delete this temporary check.    
+                        nib.save(nib.Nifti1Image(np.array(previous_seg), None), os.path.join('/home/parhomesmaeili/TrainingInnerLoopPrediction/ActivatedPred.nii.gz'))
                     else:
-                        previous_seg = None 
+                        previous_seg = None
+
 
                     #if label names is not inputted when instantiating the class, use the label names from the data dictionary.
                     if self.label_names:
