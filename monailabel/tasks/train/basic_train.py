@@ -672,6 +672,7 @@ class BasicTrainTask(TrainTask):
 
     def _create_trainer(self, context: Context):
         train_handlers: List = self.train_handlers(context)
+        
         if context.local_rank == 0:
             train_handlers.append(
                 CheckpointSaver(

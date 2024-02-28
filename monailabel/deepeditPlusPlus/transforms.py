@@ -1022,7 +1022,7 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
         if will_interact:
             for key in self.key_iterator(d):
                 if key == "image":
-                    image = d[key]
+                    image = np.copy(d[key])
                     
                     n_dims = len(image[0].shape)
                     
@@ -1066,47 +1066,70 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
         return d
     
 
-# class DebuggingIntegerCodes(MapTransform):
-#     def __init__(
-#         self, keys: KeysCollection, label_names: dict[str, int] | None = None, allow_missing_keys: bool = False
-#     ):
-#         """
-#         Changing the integer codes of the previous_seg so that they match what SHOULD be the input for the purposes of debugging.
-#         Changes to the UI should ensure this is deprecated. This should not be used for experiments since we will be using integer codes from config file
-#         when storing information about the segmentations.
+class MappingLabelsInDatasetd(MapTransform):
+    def __init__(
+        self, keys: KeysCollection, original_label_names:dict[str, int] | None = None, label_names: dict[str, int] | None = None, label_mapping: dict[str, list] | None = None, allow_missing_keys: bool = False
+    ):
+        """
+        Changing the labels from the original dataset, to what is in the config.csv or config text file. 
 
-#         Args:
-#             keys: The ``keys`` parameter will be used to get and set the actual data item to transform
-#             label_names: all label names
-#         """
-#         super().__init__(keys, allow_missing_keys)
+        Args:
+            keys: The ``keys`` parameter will be used to get and set the actual data item to transform
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.original_label_names = original_label_names
+        self.label_names = label_names
+        self.label_mapping = label_mapping 
 
-#         self.label_names = label_names or {}
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
+        for key in self.key_iterator(d):
+            # Dictionary containing new label numbers
+            label = np.zeros(d[key].shape)
 
-#     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
-#         d: dict = dict(data)
-#         for key in self.key_iterator(d):
-#             # Dictionary containing new label numbers
-#             label = np.zeros(d[key].shape)
-
-#             for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
+            for (key_label, val_label) in self.label_names.items():
+                #For each key label in the "new" config, extract the mapped classes from the original set to the current set
+                mapping_list = self.label_mapping[key_label]
+                #For each of the labels in the mapping list, convert the voxels with those values to what they are being mapped to
+                for key_label_original in mapping_list:
+                    label[d[key] == self.original_label_names[key_label_original]] = val_label
                 
-#                 if key_label != "background":
-#                     #new_label_names[key_label] = idx
-#                     label[d[key] == idx] = val_label 
-#                 if key_label == "background":
-#                     continue 
+            if isinstance(d[key], MetaTensor):
+                d[key].array = label
+            else:
+                d[key] = label
+        return d
 
+class ExtractChannelsd(MapTransform):
+    def __init__(
+        self, keys: KeysCollection, extract_channels:list, allow_missing_keys: bool = False
+    ):
+        """
+        Changing the labels from the original dataset, to what is in the config.csv or config text file. 
 
-#             print(np.unique(d["image"]))
-#             print(np.unique(d["previous_seg"]))
-#             print(np.unique(d["dummy_output"]))
+        Args:
+            keys: The ``keys`` parameter will be used to get and set the actual data item to transform
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.extract_channels = extract_channels
 
-#             print(d["image"].meta)
-#             print(d["previous_seg"].meta)
-#             print(d["dummy_output"].meta)
-#             if isinstance(d[key], MetaTensor):
-#                 d[key].array = label
-#             else:
-#                 d[key] = label
-#         return d
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
+        for key in self.key_iterator(d):
+            image = np.copy(d[key])
+            if len(self.extract_channels) == image.shape[0]:
+                pass
+            else:
+                delete_list = list(set([i for i in range(image.shape[0])]) ^ set(self.extract_channels))
+                tmp_image = np.delete(image, delete_list, axis=0)
+                if isinstance(d[key], MetaTensor):
+                    d[key].array = np.zeros(2,)
+                    #reset to a dummy array temporarily so that we can re-assign, immutability of numpy arrays means we cannot reduce an array in place unless we add new elements.
+                    d[key].array = tmp_image #np.stack([tmp_image[0]], axis=0) #np.stack([tmp_image[0], tmp_image[0], tmp_image[0], tmp_image[0], tmp_image[0]], axis=0)
+                else:
+                    d[key] = np.zeros(2,)
+                    #dummy array TODO: verify that this actually works? or if it is even needed.
+                    d[key] = tmp_image
+
+        return d  
+

@@ -22,7 +22,9 @@ from monailabel.deepeditPlusPlus.transforms import (
     FindDiscrepancyRegionsDeepEditd,
     SplitPredsLabeld,
     NormalizeLabelsInDatasetd,
-    AddSegmentationInputChannels
+    AddSegmentationInputChannels,
+    ExtractChannelsd,
+    MappingLabelsInDatasetd
 )
 from monai.handlers import MeanDice, from_engine
 from monai.inferers import SimpleInferer
@@ -54,6 +56,9 @@ class DeepEditPlusPlus(BasicTrainTask):
         self,
         model_dir,
         network,
+        original_dataset_labels,
+        label_mapping,
+        extract_channels,
         description="Train DeepEdit model for 3D Images",
         spatial_size=(128, 128, 64),
         target_spacing=(1.0, 1.0, 1.0),
@@ -62,10 +67,13 @@ class DeepEditPlusPlus(BasicTrainTask):
         deepedit_probability_train= 1/3, #TODO: With what probability do we split up the loads?
         deepgrow_probability_val=1.0,
         deepedit_probability_val=1.0, #TODO: Why are these probability values for the validation 1.0? This would mean that validation occurs solely on the editing mode.
-        debug_mode=True,
+        debug_mode=False,
         **kwargs,
     ):
         self._network = network
+        self.original_dataset_labels = original_dataset_labels
+        self.label_mapping = label_mapping
+        self.extract_channels = extract_channels
         self.spatial_size = spatial_size
         self.target_spacing = target_spacing
         self.number_intensity_ch = number_intensity_ch
@@ -109,6 +117,8 @@ class DeepEditPlusPlus(BasicTrainTask):
         return [
             LoadImaged(keys=("image", "label"), reader="ITKReader", image_only=False),
             EnsureChannelFirstd(keys=("image", "label")),
+            ExtractChannelsd(keys=("image"), extract_channels = self.extract_channels),
+            MappingLabelsInDatasetd(keys="label", original_label_names=self.original_dataset_labels, label_names = self._labels, label_mapping=self.label_mapping),
             NormalizeLabelsInDatasetd(keys="label", label_names=self._labels), 
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             # This transform may not work well for MR images
@@ -144,6 +154,8 @@ class DeepEditPlusPlus(BasicTrainTask):
         return [
             LoadImaged(keys=("image", "label"), reader="ITKReader"),
             EnsureChannelFirstd(keys=("image", "label")),
+            ExtractChannelsd(keys=("image","label"), extract_channels = self.extract_channels),
+            MappingLabelsInDatasetd(keys="label", original_label_names=self.original_dataset_labels, label_names = self._labels, label_mapping=self.label_mapping),
             NormalizeLabelsInDatasetd(keys="label", label_names=self._labels),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             # This transform may not work well for MR images
@@ -177,6 +189,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         return Interaction(
             deepgrow_probability=self.deepgrow_probability_val,
             deepedit_probability= self.deepedit_probability_val,
+            num_intensity_channel=self.number_intensity_ch, 
             transforms=self.get_click_transforms(context),
             click_probability_key="probability",
             train=False,

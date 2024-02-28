@@ -39,17 +39,31 @@ class DeepEditPlusPlus(TaskConfig):
         self.epistemic_samples = None
 
         # Multilabel
+        # self.labels = {
+        #     "spleen": 1,
+        #     "right kidney": 2,
+        #     "left kidney": 3,
+        #     "liver": 6,
+        #     "stomach": 7,
+        #     "aorta": 8,
+        #     "inferior vena cava": 9,
+        #     "background": 0,
+        # }
         self.labels = {
-            "spleen": 1,
-            "right kidney": 2,
-            "left kidney": 3,
-            "liver": 6,
-            "stomach": 7,
-            "aorta": 8,
-            "inferior vena cava": 9,
+            "tumor": 1,
             "background": 0,
         }
+        self.original_dataset_labels = {
+            "peritumoral edema": 1,
+            "non-enhancing tumor": 2,
+            "enhancing tumor": 3,
+            "background": 0
+        }
 
+        self.label_mapping = {
+            "tumor": ["peritumoral edema", "non-enhancing tumor", "enhancing tumor"],
+            "background": ["background"]
+        }
         # Single label
         # self.labels = {     
         #     "spleen": 1,
@@ -58,6 +72,9 @@ class DeepEditPlusPlus(TaskConfig):
 
         # Number of input channels - 4 for BRATS and 1 for spleen
         self.number_intensity_ch = 1
+
+        # Channels being extracted, if using a multi-channel/modality image.
+        self.extract_channels = [3]
 
         network = self.conf.get("network", "dynunet")
 
@@ -149,6 +166,8 @@ class DeepEditPlusPlus(TaskConfig):
                 preload=strtobool(self.conf.get("preload", "false")),
                 spatial_size=self.spatial_size,
                 target_spacing=self.target_spacing,
+                number_intensity_ch=self.number_intensity_ch,
+                extract_channels=self.extract_channels,
                 config={"cache_transforms": True, "cache_transforms_in_memory": True, "cache_transforms_ttl": 300},
             ),
             f"{self.name}_seg": lib.infers.DeepEditPlusPlus(
@@ -159,6 +178,7 @@ class DeepEditPlusPlus(TaskConfig):
                 spatial_size=self.spatial_size,
                 target_spacing=self.target_spacing,
                 number_intensity_ch=self.number_intensity_ch,
+                extract_channels=self.extract_channels,
                 type=InferType.SEGMENTATION,
             ),
             f"{self.name}_deepgrow": lib.infers.DeepEditPlusPlus(
@@ -169,6 +189,7 @@ class DeepEditPlusPlus(TaskConfig):
                 spatial_size=self.spatial_size,
                 target_spacing=self.target_spacing,
                 number_intensity_ch=self.number_intensity_ch,
+                extract_channels=self.extract_channels,
                 type=InferType.DEEPGROW
             )
         }
@@ -180,6 +201,9 @@ class DeepEditPlusPlus(TaskConfig):
         task: TrainTask = lib.trainers.DeepEditPlusPlus(
             model_dir=output_dir,
             network=self.network,
+            original_dataset_labels=self.original_dataset_labels,
+            label_mapping=self.label_mapping,
+            extract_channels= self.extract_channels,
             load_path=load_path,
             publish_path=self.path[1],
             spatial_size=self.spatial_size,
@@ -187,7 +211,7 @@ class DeepEditPlusPlus(TaskConfig):
             number_intensity_ch=self.number_intensity_ch,
             config={"pretrained": strtobool(self.conf.get("use_pretrained_model", "true"))},
             labels=self.labels,
-            debug_mode=False,
+            debug_mode=False, #True,
             find_unused_parameters=True,
         )
         return task

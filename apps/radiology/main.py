@@ -295,7 +295,7 @@ def main():
     base_directory = up(up(up(__file__)))
    
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--studies", default= "datasets/Task09_Spleen/imagesTr")
+    parser.add_argument("-s", "--studies", default= "datasets/Task01_BrainTumour/imagesTr") #"datasets/Task09_Spleen/imagesTr")
     parser.add_argument("-m", "--model", default="deepeditplusplus")
     parser.add_argument("-t", "--test", default="train") #"batch_infer", choices=("train", "infer", "batch_infer"))
     args = parser.parse_args()
