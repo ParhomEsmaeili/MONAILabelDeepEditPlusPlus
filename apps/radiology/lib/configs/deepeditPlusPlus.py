@@ -49,32 +49,55 @@ class DeepEditPlusPlus(TaskConfig):
         #     "inferior vena cava": 9,
         #     "background": 0,
         # }
-        self.labels = {
-            "tumor": 1,
+        
+        # #BRATS CONFIGURATION#
+        
+        # self.labels = {
+        #     "tumor": 1,
+        #     "background": 0,
+        # }
+        # self.original_dataset_labels = {
+        #     "peritumoral edema": 1,
+        #     "non-enhancing tumor": 2,
+        #     "enhancing tumor": 3,
+        #     "background": 0
+        # }
+
+        # self.label_mapping = {
+        #     "tumor": ["peritumoral edema", "non-enhancing tumor", "enhancing tumor"],
+        #     "background": ["background"]
+        # }
+
+        # Number of input channels - 4 for BRATS and 1 for spleen
+        # self.number_intensity_ch = 1
+
+        # # Channels being extracted, if using a multi-channel/modality image.
+        # self.extract_channels = [3]
+
+
+
+        ################################### #Spleen_CT Configuration
+        # Single label
+        self.labels = {     
+            "spleen": 1,
             "background": 0,
         }
-        self.original_dataset_labels = {
-            "peritumoral edema": 1,
-            "non-enhancing tumor": 2,
-            "enhancing tumor": 3,
-            "background": 0
-        }
 
+        self.original_dataset_labels = {
+            "spleen": 1,
+            "background": 0,
+        }
+        
         self.label_mapping = {
-            "tumor": ["peritumoral edema", "non-enhancing tumor", "enhancing tumor"],
+            "spleen": ["spleen"],
             "background": ["background"]
         }
-        # Single label
-        # self.labels = {     
-        #     "spleen": 1,
-        #     "background": 0,
-        #     
 
         # Number of input channels - 4 for BRATS and 1 for spleen
         self.number_intensity_ch = 1
 
-        # Channels being extracted, if using a multi-channel/modality image.
-        self.extract_channels = [3]
+        # Channels being extracted, if using a multi-channel/modality image it is non-zero, for a single modality it would just be 0.
+        self.extract_channels = [0]
 
         network = self.conf.get("network", "dynunet")
 
