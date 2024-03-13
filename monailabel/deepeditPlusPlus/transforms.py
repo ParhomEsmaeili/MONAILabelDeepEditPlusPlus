@@ -265,15 +265,24 @@ class AddGuidanceSignalDeepEditd(MapTransform):
                     #logger.info(f"Dimensions of Image Pre-Guidance are {tmp_image.shape}")
                     guidance = d[self.guidance]
                     
+                    printing_guidance = dict()
+
                     for key_label in guidance.keys():
                         # Getting signal based on guidance
                         signal = self._get_signal(image, guidance[key_label])
                         #logger.info(f"Guidance signal dimensions are {signal.shape}")
                         tmp_image = np.concatenate([tmp_image, signal], axis=0)
+
+
+                        # tmp_guidance = guidance[key_label].tolist() if isinstance(guidance[key_label], np.ndarray) else guidance[key_label]
+                        # tmp_guidance = json.loads(guidance[key_label]) if isinstance(guidance[key_label], str) else guidance[key_label]
+                        # printing_guidance[key_label] = [point for point in tmp_guidance if np.all(np.asarray(point) >= 0)]
+
                         if isinstance(d[key], MetaTensor):
                             d[key].array = tmp_image
                         else:
                             d[key] = tmp_image
+                    #logger.info(f'Guidance points are {printing_guidance}')
                     return d
                 else:
                     print("This transform only applies to image key")
@@ -640,13 +649,13 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
                             if key_label not in keep_guidance:
                                 self.guidance[key_label] = []
                         logger.info(f"Number of simulated clicks: {counter}")
-                        logger.info(f"Final Guidance points generated: {self.guidance}")
+                        #logger.info(f"Final Guidance points generated: {self.guidance}")
                         break
 
                 # Breaking once all labels are covered
                 if len(keep_guidance) == len(d["label_names"].keys()):
                     logger.info(f"Number of simulated clicks: {counter}")
-                    logger.info(f"Final Guidance points generated: {self.guidance}")
+                    #logger.info(f"Final Guidance points generated: {self.guidance}")
                     break
             d[self.guidance_key] = self.guidance  # Update the guidance
         return d
@@ -1068,7 +1077,7 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
 
 class MappingLabelsInDatasetd(MapTransform):
     def __init__(
-        self, keys: KeysCollection, original_label_names:dict[str, int] | None = None, label_names: dict[str, int] | None = None, label_mapping: dict[str, list] | None = None, allow_missing_keys: bool = False
+        self, keys: KeysCollection, original_label_names: dict[str, int] | None = None, label_names: dict[str, int] | None = None, label_mapping: dict[str, list] | None = None, allow_missing_keys: bool = False
     ):
         """
         Changing the labels from the original dataset, to what is in the config.csv or config text file. 
@@ -1100,36 +1109,36 @@ class MappingLabelsInDatasetd(MapTransform):
                 d[key] = label
         return d
 
-class ExtractChannelsd(MapTransform):
-    def __init__(
-        self, keys: KeysCollection, extract_channels:list, allow_missing_keys: bool = False
-    ):
-        """
-        Changing the labels from the original dataset, to what is in the config.csv or config text file. 
+# class ExtractChannelsd(MapTransform):
+#     def __init__(
+#         self, keys: KeysCollection, extract_channels:list, allow_missing_keys: bool = False
+#     ):
+#         """
+#         Changing the labels from the original dataset, to what is in the config.csv or config text file. 
 
-        Args:
-            keys: The ``keys`` parameter will be used to get and set the actual data item to transform
-        """
-        super().__init__(keys, allow_missing_keys)
-        self.extract_channels = extract_channels
+#         Args:
+#             keys: The ``keys`` parameter will be used to get and set the actual data item to transform
+#         """
+#         super().__init__(keys, allow_missing_keys)
+#         self.extract_channels = extract_channels
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
-        d: dict = dict(data)
-        for key in self.key_iterator(d):
-            image = np.copy(d[key])
-            if len(self.extract_channels) == image.shape[0]:
-                pass
-            else:
-                delete_list = list(set([i for i in range(image.shape[0])]) ^ set(self.extract_channels))
-                tmp_image = np.delete(image, delete_list, axis=0)
-                if isinstance(d[key], MetaTensor):
-                    d[key].array = np.zeros(2,)
-                    #reset to a dummy array temporarily so that we can re-assign, immutability of numpy arrays means we cannot reduce an array in place unless we add new elements.
-                    d[key].array = tmp_image #np.stack([tmp_image[0]], axis=0) #np.stack([tmp_image[0], tmp_image[0], tmp_image[0], tmp_image[0], tmp_image[0]], axis=0)
-                else:
-                    d[key] = np.zeros(2,)
-                    #dummy array TODO: verify that this actually works? or if it is even needed.
-                    d[key] = tmp_image
+#     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+#         d: dict = dict(data)
+#         for key in self.key_iterator(d):
+#             image = np.copy(d[key])
+#             if len(self.extract_channels) == image.shape[0]:
+#                 pass
+#             else:
+#                 delete_list = list(set([i for i in range(image.shape[0])]) ^ set(self.extract_channels))
+#                 tmp_image = np.delete(image, delete_list, axis=0)
+#                 if isinstance(d[key], MetaTensor):
+#                     d[key].array = np.zeros(2,)
+#                     #reset to a dummy array temporarily so that we can re-assign, immutability of numpy arrays means we cannot reduce an array in place unless we add new elements.
+#                     d[key].array = tmp_image #np.stack([tmp_image[0]], axis=0) #np.stack([tmp_image[0], tmp_image[0], tmp_image[0], tmp_image[0], tmp_image[0]], axis=0)
+#                 else:
+#                     d[key] = np.zeros(2,)
+#                     #dummy array TODO: verify that this actually works? or if it is even needed.
+#                     d[key] = tmp_image
 
-        return d  
+#         return d  
 

@@ -18,7 +18,7 @@ from monailabel.deepeditPlusPlus.transforms import (
     DiscardAddGuidanced,
     ResizeGuidanceMultipleLabelDeepEditd,
     AddSegmentationInputChannels,
-    ExtractChannelsd,
+    #ExtractChannelsd,
 )
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import (
@@ -55,7 +55,6 @@ class DeepEditPlusPlus(BasicInferTask):
     def __init__(
         self,
         path,
-        extract_channels,
         network=None,
         type=InferType.DEEPEDIT,
         labels=None,
@@ -84,7 +83,7 @@ class DeepEditPlusPlus(BasicInferTask):
         self.target_spacing = target_spacing
         self.number_intensity_ch = number_intensity_ch
         self.load_strict = False
-        self.extract_channels = extract_channels
+        #self.extract_channels = extract_channels
 
     def pre_transforms(self, data=None):
         
@@ -94,7 +93,7 @@ class DeepEditPlusPlus(BasicInferTask):
                 LoadImaged(keys=["image", "previous_seg"], reader="ITKReader", image_only=False), 
                 #TODO: Previous_seg should ideally be the path to a temporary file that gets generated when the update button is hit?
                 EnsureChannelFirstd(keys=["image", "previous_seg"]),
-                ExtractChannelsd(keys="image", extract_channels=self.extract_channels),
+                #ExtractChannelsd(keys="image", extract_channels=self.extract_channels),
                 Orientationd(keys=["image", "previous_seg"], axcodes="RAS"),
                 ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
 

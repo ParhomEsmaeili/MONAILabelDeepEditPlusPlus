@@ -23,7 +23,7 @@ from monailabel.deepeditPlusPlus.transforms import (
     SplitPredsLabeld,
     NormalizeLabelsInDatasetd,
     AddSegmentationInputChannels,
-    ExtractChannelsd,
+    #ExtractChannelsd,
     MappingLabelsInDatasetd
 )
 from monai.handlers import MeanDice, from_engine
@@ -58,7 +58,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         network,
         original_dataset_labels,
         label_mapping,
-        extract_channels,
+        #extract_channels,
         description="Train DeepEdit model for 3D Images",
         spatial_size=(128, 128, 64),
         target_spacing=(1.0, 1.0, 1.0),
@@ -73,7 +73,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         self._network = network
         self.original_dataset_labels = original_dataset_labels
         self.label_mapping = label_mapping
-        self.extract_channels = extract_channels
+        #self.extract_channels = extract_channels
         self.spatial_size = spatial_size
         self.target_spacing = target_spacing
         self.number_intensity_ch = number_intensity_ch
@@ -117,7 +117,6 @@ class DeepEditPlusPlus(BasicTrainTask):
         return [
             LoadImaged(keys=("image", "label"), reader="ITKReader", image_only=False),
             EnsureChannelFirstd(keys=("image", "label")),
-            ExtractChannelsd(keys=("image"), extract_channels = self.extract_channels),
             MappingLabelsInDatasetd(keys="label", original_label_names=self.original_dataset_labels, label_names = self._labels, label_mapping=self.label_mapping),
             NormalizeLabelsInDatasetd(keys="label", label_names=self._labels), 
             Orientationd(keys=["image", "label"], axcodes="RAS"),
@@ -154,7 +153,6 @@ class DeepEditPlusPlus(BasicTrainTask):
         return [
             LoadImaged(keys=("image", "label"), reader="ITKReader"),
             EnsureChannelFirstd(keys=("image", "label")),
-            ExtractChannelsd(keys=("image","label"), extract_channels = self.extract_channels),
             MappingLabelsInDatasetd(keys="label", original_label_names=self.original_dataset_labels, label_names = self._labels, label_mapping=self.label_mapping),
             NormalizeLabelsInDatasetd(keys="label", label_names=self._labels),
             Orientationd(keys=["image", "label"], axcodes="RAS"),

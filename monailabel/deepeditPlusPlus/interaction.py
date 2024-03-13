@@ -76,25 +76,35 @@ class Interaction:
         if np.random.choice([True, False], p=[self.deepgrow_probability, 1 - self.deepgrow_probability]): #TODO: should this be done as a subclass of the randomizable class, so that we can use fixed seeds for this also?
             #Here we run the loop for Deepgrow
             logger.info("Grow from prompts Inner Subloop")
+            
         
         else:
             #Here we run the loop for generating autoseg prompt channels
-            logger.info("AutoSegmentation Inner Subloop")
             # zero out input guidance channels
             batchdata_list = decollate_batch(batchdata, detach=True)
             for i in range(self.num_intensity_channel, self.num_intensity_channel + len(label_names)):
                 batchdata_list[0][CommonKeys.IMAGE][i] *= 0
             batchdata = list_data_collate(batchdata_list)
+            logger.info("AutoSegmentation Inner Subloop")
             
 
         #Here we use the initial segmentations to generate a prediction (our new previous seg) and generate a new set of inputs with this updated previous seg.
         
         if np.random.choice([True, False], p  = [self.deepedit_probability, 1 - self.deepedit_probability]):
+        
             logger.info("Editing mode Inner Subloop")
             for j in range(self.max_interactions):
                 inputs, _ = engine.prepare_batch(batchdata)
                 inputs = inputs.to(engine.state.device)
                 
+                batchdata_list = decollate_batch(batchdata, detach=True)
+                for i in range(batchdata_list[0][CommonKeys.IMAGE].size(dim=0)):
+                    placeholder_tensor = batchdata_list[0][CommonKeys.IMAGE]
+                    placeholder = np.array(placeholder_tensor[i])
+                    #print(placeholder)
+                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/TrainingInnerLoop', f'inputs_prior_prediction_iteration_{j}_channel_' + str(i)+'.nii.gz'))
+                batchdata = list_data_collate(batchdata_list)
+
                 engine.fire_event(IterationEvents.INNER_ITERATION_STARTED)
                 engine.network.eval()
 
@@ -112,7 +122,7 @@ class Interaction:
                     placeholder_tensor = batchdata[CommonKeys.PRED][0].cpu()
                     placeholder = np.array(placeholder_tensor[i], dtype=np.float32)
                     #print(placeholder)
-                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/TrainingInnerLoopPrediction', str(i)+'.nii.gz'))
+                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/TrainingInnerLoopPrediction', f'predictions_iteration_{j}_channel_' + str(i)+'.nii.gz'))
 
                 # decollate/collate batchdata to execute click transforms
                 batchdata_list = decollate_batch(batchdata, detach=True)
@@ -126,7 +136,7 @@ class Interaction:
                     placeholder_tensor = batchdata_list[0][CommonKeys.IMAGE]
                     placeholder = np.array(placeholder_tensor[i])
                     #print(placeholder)
-                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/TrainingInnerLoop', str(i)+'.nii.gz'))
+                    nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/TrainingInnerLoop', f'inputs_iteration_{j}_channel_' + str(i)+'.nii.gz'))
 
                 batchdata = list_data_collate(batchdata_list)
                 engine.fire_event(IterationEvents.INNER_ITERATION_COMPLETED)
@@ -141,6 +151,10 @@ class Interaction:
             placeholder_tensor = inputs[0]
             placeholder = np.array(placeholder_tensor[i])
             #print(placeholder)
-            nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Pictures', str(i)+'.nii.gz'))
+            nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Pictures','final_inputs_channel_' + str(i)+'.nii.gz'))
+        
+        label = batchdata["label"][0]
+        placeholder = np.array(label[0])
+        nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Pictures/label.nii.gz'))
 
         return engine._iteration(engine, batchdata)  # type: ignore[arg-type]

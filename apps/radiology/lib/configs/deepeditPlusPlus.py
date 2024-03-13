@@ -85,7 +85,7 @@ class DeepEditPlusPlus(TaskConfig):
 
         self.original_dataset_labels = {
             "spleen": 1,
-            "background": 0,
+            "background": 0
         }
         
         self.label_mapping = {
@@ -96,8 +96,6 @@ class DeepEditPlusPlus(TaskConfig):
         # Number of input channels - 4 for BRATS and 1 for spleen
         self.number_intensity_ch = 1
 
-        # Channels being extracted, if using a multi-channel/modality image it is non-zero, for a single modality it would just be 0.
-        self.extract_channels = [0]
 
         network = self.conf.get("network", "dynunet")
 
@@ -190,7 +188,6 @@ class DeepEditPlusPlus(TaskConfig):
                 spatial_size=self.spatial_size,
                 target_spacing=self.target_spacing,
                 number_intensity_ch=self.number_intensity_ch,
-                extract_channels=self.extract_channels,
                 config={"cache_transforms": True, "cache_transforms_in_memory": True, "cache_transforms_ttl": 300},
             ),
             f"{self.name}_seg": lib.infers.DeepEditPlusPlus(
@@ -201,7 +198,6 @@ class DeepEditPlusPlus(TaskConfig):
                 spatial_size=self.spatial_size,
                 target_spacing=self.target_spacing,
                 number_intensity_ch=self.number_intensity_ch,
-                extract_channels=self.extract_channels,
                 type=InferType.SEGMENTATION,
             ),
             f"{self.name}_deepgrow": lib.infers.DeepEditPlusPlus(
@@ -212,7 +208,6 @@ class DeepEditPlusPlus(TaskConfig):
                 spatial_size=self.spatial_size,
                 target_spacing=self.target_spacing,
                 number_intensity_ch=self.number_intensity_ch,
-                extract_channels=self.extract_channels,
                 type=InferType.DEEPGROW
             )
         }
@@ -226,7 +221,6 @@ class DeepEditPlusPlus(TaskConfig):
             network=self.network,
             original_dataset_labels=self.original_dataset_labels,
             label_mapping=self.label_mapping,
-            extract_channels= self.extract_channels,
             load_path=load_path,
             publish_path=self.path[1],
             spatial_size=self.spatial_size,
