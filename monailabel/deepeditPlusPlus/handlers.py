@@ -119,13 +119,22 @@ class TensorBoardImageHandler:
 
         """
         step = self.global_iter_transform(engine.state.iteration)
-        filename = (
-            self.batch_transform(engine.state.batch)[0]["image"].meta["filename_or_obj"]
-            .split("/")[-1]
-            .split(".")[0]
-        )
+        #self.bach_transform(engine.state.batch)[0] = self.batch_transform(engine.state.batch)[0]
 
-        input_tensor = self.batch_transform(engine.state.batch)[0]["image"]
+        try: 
+            filename = (
+                self.bach_transform(engine.state.batch)[0]["image"].meta["filename_or_obj"]
+                .split("/")[-1]
+                .split(".")[0]
+            )
+        except:
+            filename = (
+                self.bach_transform(engine.state.batch)[0]["saved_meta"]["filename_or_obj"]
+                .split("/")[-1]
+                .split(".")[0]
+            )
+
+        input_tensor = self.bach_transform(engine.state.batch)[0]["image"]
 
         # IMAGE
         show_image = input_tensor[0, ...][None]
@@ -149,7 +158,7 @@ class TensorBoardImageHandler:
             )
 
         # LABEL
-        show_label = self.batch_transform(engine.state.batch)[0]["label"][0, ...][None]
+        show_label = self.bach_transform(engine.state.batch)[0]["label"][0, ...][None]
         if isinstance(show_label, torch.Tensor):
             show_label = show_label.detach().cpu().numpy()
         if show_label is not None:
@@ -193,7 +202,13 @@ class TensorBoardImageHandler:
                 )
 
         # ALL CLICKS
-        show_pos_clicks = input_tensor[1:, ...][None]
+
+        #Number of additional input channels:        
+        num_classes = len(self.bach_transform(engine.state.batch)[0]["label_names"])
+        #Number of channels for the image modality:
+        num_intensity_ch = self.bach_transform(engine.state.batch)[0]["image"].shape[0] - 2 * num_classes
+
+        show_pos_clicks = input_tensor[num_intensity_ch:num_intensity_ch + num_classes, ...][None]
         if isinstance(show_pos_clicks, torch.Tensor):
             show_pos_clicks = show_pos_clicks.detach().cpu().numpy()
             # Adding all labels in a single channel tensor
@@ -216,6 +231,29 @@ class TensorBoardImageHandler:
                 max_frames=self.max_frames,
                 tag="step_" + str(step) + "_all_clicks_" + filename,
             )
+        
+        #Previous Seg Channels, for each channel we will generate a gif.
+        prev_seg_channels = input_tensor[num_intensity_ch + num_classes:, ...]
+        for (key_label, val_label) in self.bach_transform(engine.state.batch)[0]["label_names"].items():
+            show_prev = prev_seg_channels[val_label - 1, ...][None]
+            if isinstance(show_prev, torch.Tensor):
+                show_prev = show_prev.detach().cpu().numpy()
+            if show_prev is not None:
+                if not isinstance(show_prev, np.ndarray):
+                    raise TypeError(
+                        "show_pred must be None or one of "
+                        f"(numpy.ndarray, torch.Tensor) but is {type(show_label).__name__}."
+                    )
+                plot_2d_or_3d_image(
+                    # add batch dim and plot the first item
+                    data=show_prev[None],
+                    step=step,
+                    writer=self._writer,
+                    index=0,
+                    max_channels=self.max_channels,
+                    max_frames=self.max_frames,
+                    tag="step_" + str(step) + f"_prev_seg_for_label_{key_label}_" + filename,
+                )
 
         self._writer.flush()
 

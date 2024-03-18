@@ -1142,3 +1142,22 @@ class MappingLabelsInDatasetd(MapTransform):
 
 #         return d  
 
+class ExtractMeta(MapTransform):
+    def __init__(
+        self, keys: KeysCollection, allow_missing_keys: bool = False
+    ):
+        """
+        Changing the labels from the original dataset, to what is in the config.csv or config text file. 
+
+        Args:
+            keys: The ``keys`` parameter will be used to get and set the actual data item to transform
+        """
+        super().__init__(keys, allow_missing_keys)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
+        for key in self.key_iterator(d):
+            image = d[key]
+            if isinstance(d[key], MetaTensor):
+                d["saved_meta"] = image.meta
+        return d

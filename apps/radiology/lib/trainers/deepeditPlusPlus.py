@@ -24,7 +24,8 @@ from monailabel.deepeditPlusPlus.transforms import (
     NormalizeLabelsInDatasetd,
     AddSegmentationInputChannels,
     #ExtractChannelsd,
-    MappingLabelsInDatasetd
+    MappingLabelsInDatasetd,
+    ExtractMeta
 )
 from monai.handlers import MeanDice, from_engine
 from monai.inferers import SimpleInferer
@@ -98,6 +99,8 @@ class DeepEditPlusPlus(BasicTrainTask):
         return [
             Activationsd(keys="pred", softmax=True),
             AsDiscreted(keys="pred", argmax=True),
+            #Temporary measure, not the final resolution for the issue with this code deleting the meta dictionary.
+            ExtractMeta(keys=("image")),
             ToNumpyd(keys=("image", "label", "pred")),
             # Transforms for click simulation
             FindDiscrepancyRegionsDeepEditd(keys="label", pred="pred", discrepancy="discrepancy"),
@@ -211,7 +214,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         )
         for key_label in self._labels:
             if key_label != "background":
-                all_metrics[key_label + "_dice"] = MeanDice(
+                all_metrics["val_" + key_label + "_dice"] = MeanDice(
                     output_transform=from_engine(["pred_" + key_label, "label_" + key_label]), include_background=False
                 )
         return all_metrics

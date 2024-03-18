@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 #######################
 from os.path import dirname as up
+import os
 
 class MyApp(MONAILabelApp):
     def __init__(self, app_dir, studies, conf):
@@ -376,6 +377,7 @@ def main():
 
 
 if __name__ == "__main__":
+
     # export PYTHONPATH=~/Projects/MONAILabel:`pwd`
     # python main.py
     main()
