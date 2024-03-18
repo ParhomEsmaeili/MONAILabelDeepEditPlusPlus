@@ -65,7 +65,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         target_spacing=(1.0, 1.0, 1.0),
         number_intensity_ch=1,
         deepgrow_probability_train= 0.5,
-        deepedit_probability_train= 1/3, #TODO: With what probability do we split up the loads?
+        deepedit_probability_train= 1/3,
         deepgrow_probability_val=1.0,
         deepedit_probability_val=1.0, #TODO: Why are these probability values for the validation 1.0? This would mean that validation occurs solely on the editing mode.
         debug_mode=False,

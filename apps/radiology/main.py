@@ -355,7 +355,7 @@ def main():
     app.train(
         request={
             "model": args.model,
-            "max_epochs": 50,
+            "max_epochs": 100,
             "dataset": "SmartCacheDataset", #"Dataset",  # PersistentDataset, CacheDataset
             "early_stop_patience":-1,
             "train_batch_size": 1,
