@@ -98,11 +98,13 @@ class DeepEditPlusPlus(TaskConfig):
 
 
         network = self.conf.get("network", "dynunet")
+        num_epochs = self.conf.get("max_epochs", "50")
+        dataset_name = self.conf.get("dataset_name", "default")
 
         # Model Files
         self.path = [
             os.path.join(self.model_dir, f"pretrained_{self.name}_{network}.pt"),  # pretrained
-            os.path.join(self.model_dir, f"{self.name}_{network}.pt"),  # published
+            os.path.join(self.model_dir, f"{self.name}_{network}_num_epochs_{num_epochs}_dataset_{dataset_name}.pt"),  # published
         ]
         #--conf use_pretrained_model false will disable this, or we can change it in the code.
         # Download PreTrained Model
@@ -213,7 +215,8 @@ class DeepEditPlusPlus(TaskConfig):
         }
 
     def trainer(self) -> Optional[TrainTask]:
-        output_dir = os.path.join(self.model_dir, f"{self.name}_" + self.conf.get("network", "dynunet"))
+        #output_dir = os.path.join(self.model_dir, f"{self.name}_" + self.conf.get("network", "dynunet"))
+        output_dir = os.path.join(self.model_dir, f"{self.name}_" + self.conf.get("network","dynunet") + "_num_epochs_" + self.conf.get("max_epochs", "50") + "_dataset_" + self.conf.get("dataset_name", "default"))
         load_path = self.path[0] if os.path.exists(self.path[0]) else self.path[1]
 
         task: TrainTask = lib.trainers.DeepEditPlusPlus(
