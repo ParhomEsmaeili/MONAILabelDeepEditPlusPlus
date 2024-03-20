@@ -25,7 +25,8 @@ from monailabel.deepeditPlusPlus.transforms import (
     AddSegmentationInputChannels,
     #ExtractChannelsd,
     MappingLabelsInDatasetd,
-    ExtractMeta
+    ExtractMeta,
+    IntensityCorrection
 )
 from monai.handlers import MeanDice, from_engine
 from monai.inferers import SimpleInferer
@@ -124,7 +125,8 @@ class DeepEditPlusPlus(BasicTrainTask):
             NormalizeLabelsInDatasetd(keys="label", label_names=self._labels), 
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             # This transform may not work well for MR images
-            ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
+            IntensityCorrection(keys="image", modality = context.imaging_modality),
+            #ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
             RandFlipd(keys=("image", "label"), spatial_axis=[0], prob=0.10),
             RandFlipd(keys=("image", "label"), spatial_axis=[1], prob=0.10),
             RandFlipd(keys=("image", "label"), spatial_axis=[2], prob=0.10),
@@ -160,7 +162,8 @@ class DeepEditPlusPlus(BasicTrainTask):
             NormalizeLabelsInDatasetd(keys="label", label_names=self._labels),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             # This transform may not work well for MR images
-            ScaleIntensityRanged(keys=("image"), a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
+            IntensityCorrection(keys="image", modality = context.imaging_modality),
+            #ScaleIntensityRanged(keys=("image"), a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
             Resized(keys=("image", "label"), spatial_size=self.spatial_size, mode=("area", "nearest")),
             # Transforms for click simulation 
             FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),

@@ -299,6 +299,9 @@ def main():
     parser.add_argument("-s", "--studies", default = "datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
     parser.add_argument("-m", "--model", default="deepeditplusplus")
     parser.add_argument("-t", "--test", default="train") #"batch_infer", choices=("train", "infer", "batch_infer"))
+    parser.add_argument("-e", "--max_epoch", default=100)
+    parser.add_argument("-i", "--imaging_modality", default="CT")
+
     args = parser.parse_args()
 
     app_dir = up(__file__)
@@ -355,7 +358,7 @@ def main():
     app.train(
         request={
             "model": args.model,
-            "max_epochs": 100,
+            "max_epochs": 200,
             "dataset": "SmartCacheDataset", #"Dataset",  # PersistentDataset, CacheDataset
             "early_stop_patience":-1,
             "train_batch_size": 1,
@@ -371,7 +374,8 @@ def main():
             "name":"train_01",
             "pretrained" : False,
             "device": "NVIDIA GeForce RTX 4090",
-            "local_rank": 0
+            "local_rank": 0,
+            "imaging_modality": args.imaging_modality
         },
     )
 

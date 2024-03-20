@@ -504,6 +504,7 @@ class BasicTrainTask(TrainTask):
             ignite.distributed.sync()
 
         context.device = self._device(context)
+        context.imaging_modality = request["imaging_modality"]
         context.max_epochs = request["max_epochs"]
         context.train_batch_size = request["train_batch_size"]
         context.val_batch_size = request["val_batch_size"]
