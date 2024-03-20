@@ -18,7 +18,7 @@ from monailabel.deepeditPlusPlus.transforms import (
     DiscardAddGuidanced,
     ResizeGuidanceMultipleLabelDeepEditd,
     AddSegmentationInputChannels,
-    #ExtractChannelsd,
+    IntensityCorrection
 )
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import (
@@ -86,7 +86,7 @@ class DeepEditPlusPlus(BasicInferTask):
         #self.extract_channels = extract_channels
 
     def pre_transforms(self, data=None):
-        
+        data["modality"] = "CT"
         if self.type == InferType.DEEPEDIT:
             data["previous_seg"] = '/home/parhomesmaeili/Desktop/Label which is in the config file format/OriginalDeepEditDummyOutput.nrrd'
             t = [
@@ -95,8 +95,8 @@ class DeepEditPlusPlus(BasicInferTask):
                 EnsureChannelFirstd(keys=["image", "previous_seg"]),
                 #ExtractChannelsd(keys="image", extract_channels=self.extract_channels),
                 Orientationd(keys=["image", "previous_seg"], axcodes="RAS"),
-                ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
-
+                #ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
+                IntensityCorrection(keys="image", modality=data["modality"]),
                 AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
                 Resized(keys=["image", "previous_seg"], spatial_size=self.spatial_size, mode=["area", "nearest"]),
                 ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
@@ -111,7 +111,8 @@ class DeepEditPlusPlus(BasicInferTask):
             LoadImaged(keys="image", reader="ITKReader", image_only=False),
             EnsureChannelFirstd(keys="image"),
             Orientationd(keys="image", axcodes="RAS"),
-            ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
+            #ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
+            IntensityCorrection(keys="image", modality=data["modality"]),
             ]
             if self.type == InferType.DEEPGROW:
             
