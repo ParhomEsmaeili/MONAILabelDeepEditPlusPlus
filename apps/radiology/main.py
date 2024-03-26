@@ -299,7 +299,7 @@ def main():
     parser.add_argument("-s", "--studies", default = "datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
     parser.add_argument("-m", "--model", default="deepeditplusplus")
     parser.add_argument("-t", "--test", default="train") #"batch_infer", choices=("train", "infer", "batch_infer"))
-    parser.add_argument("-e", "--max_epoch", default=200)
+    parser.add_argument("-e", "--max_epoch", default="250")
     parser.add_argument("-i", "--imaging_modality", default="CT")
 
     args = parser.parse_args()
@@ -309,7 +309,7 @@ def main():
     conf = {
         "models": args.model,
         "use_pretrained_model": "False",
-        "max_epoch": args.max_epoch,
+        "max_epochs": args.max_epoch,
         "dataset_name": args.studies[9:-9] 
     }
 
@@ -360,7 +360,7 @@ def main():
     app.train(
         request={
             "model": args.model,
-            "max_epochs": args.max_epoch,
+            "max_epochs": int(args.max_epoch),
             "dataset": "SmartCacheDataset", #"Dataset",  # PersistentDataset, CacheDataset
             "early_stop_patience":-1,
             "train_batch_size": 1,

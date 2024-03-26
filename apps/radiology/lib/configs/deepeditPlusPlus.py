@@ -28,6 +28,10 @@ from monailabel.tasks.scoring.epistemic import EpistemicScoring
 from monailabel.tasks.scoring.sum import Sum
 from monailabel.utils.others.generic import download_file, strtobool
 
+####################################################################### External Validation metric imports
+import csv
+import shutil
+
 logger = logging.getLogger(__name__)
 
 
@@ -106,6 +110,29 @@ class DeepEditPlusPlus(TaskConfig):
             os.path.join(self.model_dir, f"pretrained_{self.name}_{network}.pt"),  # pretrained
             os.path.join(self.model_dir, f"{self.name}_{network}_num_epochs_{num_epochs}_dataset_{dataset_name}.pt"),  # published
         ]
+
+        ##################### CHANGE IN PLACE TEMPORARILY FOR THE EXTERNAL VALIDATION METRIC SAVES #####################################################
+        output_dir = os.path.join(os.path.expanduser('~'), 'external_validation', dataset_name)
+        output_dir_scores = os.path.join(output_dir, 'validation_scores')
+        output_dir_images = os.path.join(output_dir, 'validation_images_verif')
+
+        if os.path.exists(output_dir):
+            shutil.rmtree(output_dir)
+        # if os.path.exists(output_dir_scores):
+        #     shutil.rmtree(output_dir_scores)
+        # if os.path.exists(output_dir_images):
+        #     shutil.rmtree(output_dir_images)
+
+        os.makedirs(output_dir_scores)
+        os.makedirs(output_dir_images)
+
+
+        fields = ['deepgrow_dice', 'autoseg_dice', 'deepedit_autoseg_dice']    
+        with open(os.path.join(output_dir_scores, 'validation.csv'),'a') as f:
+            writer = csv.writer(f)
+            writer.writerow(fields) 
+        
+        ################################################################################################################################################
         #--conf use_pretrained_model false will disable this, or we can change it in the code.
         # Download PreTrained Model
         if strtobool(self.conf.get("use_pretrained_model", "false")):
@@ -120,7 +147,7 @@ class DeepEditPlusPlus(TaskConfig):
         self.network = (
             UNETR(
                 spatial_dims=3,
-                in_channels= 2 * len(self.labels) + self.number_intensity_ch, #TODO: change back # 2 * len(self.labels) + self.number_intensity_ch,
+                in_channels= 2 * len(self.labels) + self.number_intensity_ch, 
                 out_channels=len(self.labels),
                 img_size=self.spatial_size,
                 feature_size=64,
@@ -210,7 +237,7 @@ class DeepEditPlusPlus(TaskConfig):
                 spatial_size=self.spatial_size,
                 target_spacing=self.target_spacing,
                 number_intensity_ch=self.number_intensity_ch,
-                type=InferType.DEEPGROW
+                type=InferType.DEEPEDIT #InferType.DEEPGROW
             )
         }
 
