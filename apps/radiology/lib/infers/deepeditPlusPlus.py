@@ -18,7 +18,8 @@ from monailabel.deepeditPlusPlus.transforms import (
     DiscardAddGuidanced,
     ResizeGuidanceMultipleLabelDeepEditd,
     AddSegmentationInputChannels,
-    IntensityCorrection
+    IntensityCorrection,
+    MappingLabelsInDatasetd
 )
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import (
@@ -55,6 +56,8 @@ class DeepEditPlusPlus(BasicInferTask):
     def __init__(
         self,
         path,
+        #original_dataset_labels,
+        #label_mapping,
         network=None,
         type=InferType.DEEPEDIT,
         labels=None,
@@ -79,6 +82,10 @@ class DeepEditPlusPlus(BasicInferTask):
             **kwargs,
         )
 
+        #self.original_dataset_labels = original_dataset_labels
+        #self.label_mapping = label_mapping
+        
+        #######
         self.spatial_size = spatial_size
         self.target_spacing = target_spacing
         self.number_intensity_ch = number_intensity_ch
@@ -86,17 +93,18 @@ class DeepEditPlusPlus(BasicInferTask):
         #self.extract_channels = extract_channels
 
     def pre_transforms(self, data=None):
-        data["modality"] = "CT"
+        #print(data)
+        #data["imaging_modality"] = "CT"
         if self.type == InferType.DEEPEDIT:
-            data["previous_seg"] = '/home/parhomesmaeili/Desktop/Label which is in the config file format/OriginalDeepEditDummyOutput.nrrd'
+            #data["previous_seg"] = '/home/parhomesmaeili/Desktop/Label which is in the config file format/OriginalDeepEditDummyOutput.nrrd'
             t = [
                 LoadImaged(keys=["image", "previous_seg"], reader="ITKReader", image_only=False), 
                 #TODO: Previous_seg should ideally be the path to a temporary file that gets generated when the update button is hit?
                 EnsureChannelFirstd(keys=["image", "previous_seg"]),
-                #ExtractChannelsd(keys="image", extract_channels=self.extract_channels),
                 Orientationd(keys=["image", "previous_seg"], axcodes="RAS"),
                 #ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
-                IntensityCorrection(keys="image", modality=data["modality"]),
+                IntensityCorrection(keys="image", modality=data["imaging_modality"]),
+                #MappingLabelsInDatasetd(keys="previous_seg",original_label_names=self.original_dataset_labels, label_names = self.labels, label_mapping=self.label_mapping),
                 AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
                 Resized(keys=["image", "previous_seg"], spatial_size=self.spatial_size, mode=["area", "nearest"]),
                 ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
@@ -112,7 +120,7 @@ class DeepEditPlusPlus(BasicInferTask):
             EnsureChannelFirstd(keys="image"),
             Orientationd(keys="image", axcodes="RAS"),
             #ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
-            IntensityCorrection(keys="image", modality=data["modality"]),
+            IntensityCorrection(keys="image", modality=data["imaging_modality"]),
             ]
             if self.type == InferType.DEEPGROW:
             
@@ -150,8 +158,6 @@ class DeepEditPlusPlus(BasicInferTask):
         return []  # Self-determine from the list of pre-transforms provided
 
     def post_transforms(self, data=None) -> Sequence[Callable]:
-        # print(data["image"])
-        # print(data["image"].meta)
         return [
             EnsureTyped(keys="pred", device=data.get("device") if data else None),
             Activationsd(keys="pred", softmax=True),

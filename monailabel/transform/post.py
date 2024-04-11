@@ -154,9 +154,6 @@ class Restored(MapTransform):
                 new_pred = result * 0.0
                 for j, (label_name, idx) in enumerate(self.config_labels.items(), 1):
                     # Consider only labels different than background
-                    #print(label_name)
-                    #print(idx)
-                    #print(j)
                     if label_name != "background":
                         new_pred[result == j] = idx
                 result = new_pred

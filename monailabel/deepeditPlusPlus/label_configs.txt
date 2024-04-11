@@ -1,0 +1,13 @@
+{
+"labels":{
+"spleen":1,
+"background":0
+},
+"original_dataset_labels":{
+"spleen":1,
+"background":0
+},
+"label_mapping":{
+"spleen":["spleen"],
+"background":["background"]}
+}

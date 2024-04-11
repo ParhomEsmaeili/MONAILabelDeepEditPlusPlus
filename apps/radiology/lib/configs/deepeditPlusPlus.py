@@ -31,6 +31,7 @@ from monailabel.utils.others.generic import download_file, strtobool
 ####################################################################### External Validation metric imports
 import csv
 import shutil
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -42,19 +43,21 @@ class DeepEditPlusPlus(TaskConfig):
         self.epistemic_enabled = None
         self.epistemic_samples = None
 
-        # Multilabel
-        # self.labels = {
-        #     "spleen": 1,
-        #     "right kidney": 2,
-        #     "left kidney": 3,
-        #     "liver": 6,
-        #     "stomach": 7,
-        #     "aorta": 8,
-        #     "inferior vena cava": 9,
-        #     "background": 0,
-        # }
         
-        # #BRATS CONFIGURATION#
+        ###################### Setting the location to extract the label configs from ####################
+        dir_name = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+        label_config_path = os.path.join(dir_name, "monailabel", os.path.splitext(os.path.basename(__file__))[0], 'label_configs.txt')
+        
+        ################### Importing the label configs dictionary #####################
+
+        with open(label_config_path) as f:
+            config_dict = json.load(f)
+
+        self.labels = config_dict["labels"]
+        self.original_dataset_labels = config_dict["original_dataset_labels"]
+        self.label_mapping = config_dict["label_mapping"]
+
+        # #BRATS CONFIGURATION format #######
         
         # self.labels = {
         #     "tumor": 1,
@@ -81,29 +84,32 @@ class DeepEditPlusPlus(TaskConfig):
 
 
         ################################### #Spleen_CT Configuration
-        # Single label
-        self.labels = {     
-            "spleen": 1,
-            "background": 0,
-        }
+        # Binary/Single label
 
-        self.original_dataset_labels = {
-            "spleen": 1,
-            "background": 0
-        }
-        
-        self.label_mapping = {
-            "spleen": ["spleen"],
-            "background": ["background"]
-        }
+        # self.labels = {     
+        #     "spleen": 1,
+        #     "background": 0,
+        # }
+
+        # self.original_dataset_labels = {
+        #     "spleen": 1,
+        #     "background": 0
+        # }
+        # ############ Label Mapping, key = output_class, val = list of input classes. ##############
+        # self.label_mapping = {
+        #     "spleen": ["spleen"],
+        #     "background": ["background"]
+        # }
 
         # Number of input channels - 4 for BRATS and 1 for spleen
         self.number_intensity_ch = 1
 
+        
 
         network = self.conf.get("network", "dynunet")
         num_epochs = self.conf.get("max_epochs", "50")
-        dataset_name = self.conf.get("dataset_name", "default")
+        dataset_name = self.conf.get("dataset_name", "Task09_Spleen")
+        run_mode = self.conf.get("mode", "train")
 
         # Model Files
         self.path = [
@@ -116,21 +122,18 @@ class DeepEditPlusPlus(TaskConfig):
         output_dir_scores = os.path.join(output_dir, 'validation_scores')
         output_dir_images = os.path.join(output_dir, 'validation_images_verif')
 
-        if os.path.exists(output_dir):
-            shutil.rmtree(output_dir)
-        # if os.path.exists(output_dir_scores):
-        #     shutil.rmtree(output_dir_scores)
-        # if os.path.exists(output_dir_images):
-        #     shutil.rmtree(output_dir_images)
+        if run_mode == "train":
+            if os.path.exists(output_dir):
+                shutil.rmtree(output_dir)
 
-        os.makedirs(output_dir_scores)
-        os.makedirs(output_dir_images)
+            os.makedirs(output_dir_scores)
+            os.makedirs(output_dir_images)
 
 
-        fields = ['deepgrow_dice', 'autoseg_dice', 'deepedit_autoseg_dice']    
-        with open(os.path.join(output_dir_scores, 'validation.csv'),'a') as f:
-            writer = csv.writer(f)
-            writer.writerow(fields) 
+            fields = ['deepgrow_dice', 'autoseg_dice', 'deepedit_autoseg_dice']    
+            with open(os.path.join(output_dir_scores, 'validation.csv'),'a') as f:
+                writer = csv.writer(f)
+                writer.writerow(fields) 
         
         ################################################################################################################################################
         #--conf use_pretrained_model false will disable this, or we can change it in the code.
@@ -208,10 +211,14 @@ class DeepEditPlusPlus(TaskConfig):
         logger.info(f"EPISTEMIC Enabled: {self.epistemic_enabled}; Samples: {self.epistemic_samples}")
 
     def infer(self) -> Union[InferTask, Dict[str, InferTask]]:
+        print('checkpoint path is:')
+        print(self.path)
         return {
             self.name: lib.infers.DeepEditPlusPlus(
                 path=self.path,
                 network=self.network,
+                #original_dataset_labels=self.original_dataset_labels,
+                #label_mapping=self.label_mapping,
                 labels=self.labels,
                 preload=strtobool(self.conf.get("preload", "false")),
                 spatial_size=self.spatial_size,
@@ -219,9 +226,11 @@ class DeepEditPlusPlus(TaskConfig):
                 number_intensity_ch=self.number_intensity_ch,
                 config={"cache_transforms": True, "cache_transforms_in_memory": True, "cache_transforms_ttl": 300},
             ),
-            f"{self.name}_seg": lib.infers.DeepEditPlusPlus(
+            f"{self.name}_autoseg": lib.infers.DeepEditPlusPlus(
                 path=self.path,
                 network=self.network,
+                #original_dataset_labels=self.original_dataset_labels,
+                #label_mapping=self.label_mapping,
                 labels=self.labels,
                 preload=strtobool(self.conf.get("preload", "false")),
                 spatial_size=self.spatial_size,
@@ -232,12 +241,14 @@ class DeepEditPlusPlus(TaskConfig):
             f"{self.name}_deepgrow": lib.infers.DeepEditPlusPlus(
                 path=self.path,
                 network=self.network,
+                #original_dataset_labels=self.original_dataset_labels,
+                #label_mapping=self.label_mapping,
                 labels=self.labels,
                 preload=strtobool(self.conf.get("preload","false")),
                 spatial_size=self.spatial_size,
                 target_spacing=self.target_spacing,
                 number_intensity_ch=self.number_intensity_ch,
-                type=InferType.DEEPEDIT #InferType.DEEPGROW
+                type=InferType.DEEPGROW
             )
         }
 

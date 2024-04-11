@@ -774,7 +774,8 @@ class ResizeGuidanceMultipleLabelDeepEditd(Transform):
                 else []
             )
             all_guidances[key_label] = guidance
-
+            logger.info(f'Resized {key_label} guidance is {guidance}')
+        
         d[self.guidance] = all_guidances
         return d
 
@@ -1042,7 +1043,7 @@ class AddSegmentationInputChannels(Randomizable, MapTransform):
                         elif len(d[self.previous_seg_name].shape) == n_dims: #If the previous segmentation is already an n * D tensor where n = spatial dimensions of image
                             previous_seg = d[self.previous_seg_name]
                         #TODO: Delete this temporary check.    
-                        nib.save(nib.Nifti1Image(np.array(previous_seg), None), os.path.join('/home/parhomesmaeili/TrainingInnerLoopPrediction/ActivatedPred.nii.gz'))
+                        #nib.save(nib.Nifti1Image(np.array(previous_seg), None), os.path.join('/home/parhomesmaeili/TrainingInnerLoopPrediction/ActivatedPred.nii.gz'))
                     else:
                         previous_seg = None
 

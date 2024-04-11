@@ -51,10 +51,13 @@ def write_itk(image_np, output_file, affine, dtype, compress):
 
     # https://github.com/RSIP-Vision/medio/blob/master/medio/metadata/affine.py#L108-L121
     if affine is not None:
-        convert_aff_mat = np.diag([-1, -1, 1, 1])
-        if affine.shape[0] == 3:  # Handle RGB (2D Image)
-            convert_aff_mat = np.diag([-1, -1, 1])
-        affine = convert_aff_mat @ affine
+        #TODO: REMOVE? Making the change to ensure that the code is compatible with identity matrices, so that the saved image does not end up in a different orientation.
+        if True: #not np.array_equal(affine, np.eye(affine.shape[0])):
+
+            convert_aff_mat = np.diag([-1, -1, 1, 1])
+            if affine.shape[0] == 3:  # Handle RGB (2D Image)
+                convert_aff_mat = np.diag([-1, -1, 1])
+            affine = convert_aff_mat @ affine
 
         dim = affine.shape[0] - 1
         _origin_key = (slice(-1), -1)
@@ -128,8 +131,12 @@ def write_seg_nrrd(
 
     kinds = ["list", "domain", "domain", "domain"]
 
-    convert_aff_mat = np.diag([-1, -1, 1, 1])
-    affine = convert_aff_mat @ affine
+    #TODO: REMOVE?Making the change to ensure that the code is compatible with identity matrices, so that the saved image does not end up in a different orientation.
+    if True: #not np.array_equal(affine, np.eye(affine.shape[0])):
+
+        convert_aff_mat = np.diag([-1, -1, 1, 1])
+        affine = convert_aff_mat @ affine
+
 
     _origin_key = (slice(-1), -1)
     origin = affine[_origin_key]
@@ -208,6 +215,7 @@ class Writer:
         if affine is None and isinstance(data[self.ref_image], MetaTensor):
             affine = data[self.ref_image].affine
 
+        #if affine == 
         logger.debug(f"Image: {image_np.shape}; Data Image: {data[self.label].shape}")
 
         output_file = None

@@ -226,6 +226,7 @@ class Interaction:
                 
                 if not self.train:
                     if not os.path.exists(os.path.join(output_dir, 'TrainingInnerLoop')):
+                        
                         os.makedirs(os.path.join(output_dir, 'TrainingInnerLoop'))
 
                     batchdata_list = decollate_batch(batchdata, detach=True)

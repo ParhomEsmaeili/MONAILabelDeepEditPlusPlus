@@ -157,6 +157,9 @@ sample-apps/*/train
 apps/radiology/model
 apps/radiology/logs
 
+#results 
+results
+
 #data
 datasets
 
