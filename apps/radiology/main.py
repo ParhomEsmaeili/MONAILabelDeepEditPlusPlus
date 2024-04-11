@@ -48,6 +48,7 @@ import shutil
 from monailabel.utils.others.generic import device_list, file_ext
 import nibabel as nib 
 import numpy as np
+import ast
 
 ########## Additional modules and packages for the inference click simulation
 from monai.transforms import (
@@ -324,22 +325,22 @@ def inner_loop_runner(app, request_templates, task_configs, image_info, device, 
         initial_request["device"] = device
         subsequent_request["device"] = device
 
-        if initial_task == "autoseg":
-            res = app.infer(request = initial_request)  #request={"model": args.model, "image": image_id, "device": device})
-        else:
-            initial_request = click_simulation(initial_request, label_configs, clicking_task = initial_task)
-            res = app.infer(request = initial_request)
-        # Have a saved label for the initial seg, so that we have a measure for how the iterations evolve with accuracy
-
-        res_savepath = label_saving(res, os.path.join(output_dir, "labels", initial_task), image_id, image_path)
-        
-        #Extracting the path for the GT label that we need to simulate the clicks with:
+        #Extracting the path for the GT label that we need to simulate the clicks with (if necessary):
         gt_path = os.path.join(output_dir, 'labels', 'original', image_id + '.nii.gz')
 
         #Creating a save folder for the RAS and resized label to verify the click simulation is done appropriately
         save_folder = os.path.join(up(up(gt_path)), 'RAS_GT')
         os.makedirs(save_folder, exist_ok=True)
 
+        if initial_task == "autoseg":
+            res = app.infer(request = initial_request)  #request={"model": args.model, "image": image_id, "device": device})
+        elif initial_task == "deepgrow":
+            initial_request, transform_output_dict = click_simulation(initial_request, label_configs, clicking_task = initial_task, gt_path=gt_path)
+            res = app.infer(request = initial_request)
+        # Have a saved label for the initial seg, so that we have a measure for how the iterations evolve with accuracy
+
+        res_savepath = label_saving(res, os.path.join(output_dir, "labels", initial_task), image_id, image_path)
+        
 
         for i in range(1, num_iterations + 1):
             #Add the previous seg location to the subsequent requests: TODO: check whether this works, it should point to the location 
@@ -418,8 +419,11 @@ def inner_loop_runner(app, request_templates, task_configs, image_info, device, 
             #Extracting the path for the GT label that we need to simulate the clicks with:
             gt_path = os.path.join(output_dir, 'labels', 'original', image_id + '.nii.gz')
             
-            input_request = click_simulation(input_request, label_configs, clicking_task = task, gt_path = gt_path)
+            input_request, transform_output_dict = click_simulation(input_request, label_configs, clicking_task = task, gt_path = gt_path)
 
+            res = app.infer(request=input_request)
+            
+            _ = label_saving(res, os.path.join(output_dir, "labels", "final"), image_id, image_path)
     logger.info(f'Inference completed for image: {image_id}')
 
 def label_saving(inference_res, output_dir, image_id, image_name_path):
@@ -521,14 +525,23 @@ def click_simulation(inference_request, label_configs, clicking_task, gt_path):
             transform_output_dict[f"discrepancy_{label_class}"] = transform_output_dict["discrepancy"][label_class][0]
             
 
-    #Converting the guidance clicks to inputs for the inference script
-    for key in transform_output_dict["guidance"].keys():
-        sim_clicks = transform_output_dict["guidance"][key]
-        sim_click_valid = [click[1:] for click in sim_clicks if click[0] >= 1]
-        inference_request[key] = sim_click_valid
-#    inference_request["guidance"] = transform_output_dict["guidance"]
-        
-    return inference_request, transform_output_dict, discrepancy_output_dict
+        #Converting the guidance clicks to inputs for the inference script
+        for key in transform_output_dict["guidance"].keys():
+            sim_clicks = transform_output_dict["guidance"][key]
+            sim_click_valid = [click[1:] for click in sim_clicks if click[0] >= 1]
+            inference_request[key] = sim_click_valid
+    #    inference_request["guidance"] = transform_output_dict["guidance"]
+            
+        return inference_request, transform_output_dict, discrepancy_output_dict
+
+    elif clicking_task == "deepgrow":
+        #Converting the guidance clicks to inputs for the inference script
+        for key in transform_output_dict["guidance"].keys():
+            sim_clicks = ast.literal_eval(transform_output_dict["guidance"][key])
+            sim_click_valid = [click[1:] for click in sim_clicks if click[0] >= 1]
+            inference_request[key] = sim_click_valid
+    #    inference_request["guidance"] = transform_output_dict["guidance"]
+        return inference_request, transform_output_dict
 
 """
 Example to run train/infer/batch infer/scoring task(s) locally without actually running MONAI Label Server
@@ -561,7 +574,7 @@ def main():
     parser.add_argument("-s", "--studies", default = "datasets/Task09_Spleen_Split_True_proportion_0.8_channels_All/imagesTs") #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
     parser.add_argument("-m", "--model", default="deepeditplusplus")
     parser.add_argument("-t", "--test", default="infer")#"train") #"batch_infer", choices=("train", "infer", "batch_infer"))
-    parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "autoseg", "3"], help="The subtask/mode which we want to execute")
+    parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "deepgrow", "3"], help="The subtask/mode which we want to execute")
     parser.add_argument("-e", "--max_epoch", default="250")
     parser.add_argument("-i", "--imaging_modality", default="CT")
 
