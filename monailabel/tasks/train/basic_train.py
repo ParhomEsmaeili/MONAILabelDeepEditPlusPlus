@@ -441,7 +441,7 @@ class BasicTrainTask(TrainTask):
         multi_gpu = req["multi_gpu"]
         multi_gpus = req.get("gpus", "all")
         world_size = torch.cuda.device_count() if not multi_gpus or multi_gpus == "all" else len(multi_gpus.split(","))
-
+        logger.info(f"There are {world_size} cuda devices")
         logger.info(f"CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES')}")
 
         datalist = self.pre_process(req, datastore)
