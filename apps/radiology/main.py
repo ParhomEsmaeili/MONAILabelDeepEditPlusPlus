@@ -14,11 +14,20 @@ import logging
 import os
 import shutil
 from typing import Dict
+############################
+from os.path import dirname as up
+import os
+import sys
+file_dir = up(up(up(__file__)))
+sys.path.append(file_dir)
+print(sys.path)
+########################
 
 import lib.configs
 from lib.activelearning import Last
 from lib.infers.deepgrow_pipeline import InferDeepgrowPipeline
 from lib.infers.vertebra_pipeline import InferVertebraPipeline
+
 
 import monailabel
 from monailabel.interfaces.app import MONAILabelApp
@@ -42,13 +51,13 @@ from monailabel.utils.others.planner import HeuristicPlanner
 logger = logging.getLogger(__name__)
 
 ########### Additional modules for the inference and training scripts ############
-from os.path import dirname as up
-import os
 import shutil
 from monailabel.utils.others.generic import device_list, file_ext
 import nibabel as nib 
 import numpy as np
 import ast
+
+
 
 ########## Additional modules and packages for the inference click simulation
 from monai.transforms import (
