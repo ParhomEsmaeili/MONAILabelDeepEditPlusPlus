@@ -21,6 +21,7 @@ import sys
 file_dir = up(up(up(__file__)))
 sys.path.append(file_dir)
 print(sys.path)
+import torch 
 ########################
 
 import lib.configs
@@ -603,6 +604,11 @@ def main():
     print(args.test)
     # app = MyApp(app_dir, studies, conf)
 
+    ################ Adding the name of the cuda device used ###############
+    cuda_device = torch.cuda.current_device()
+    device_name = torch.cuda.get_device_name(cuda_device)
+    print(device_name)
+
     # Infer
     if args.test == "infer":
 
@@ -702,7 +708,7 @@ def main():
             "client_id":"user-xyz",
             "name":"train_01",
             "pretrained" : False,
-            "device": "NVIDIA GeForce RTX 4090",
+            "device": device_name, #
             "local_rank": 0,
             "imaging_modality": args.imaging_modality
         },
