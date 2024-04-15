@@ -698,7 +698,7 @@ def main():
             "early_stop_patience":-1,
             "train_batch_size": 1,
             "val_batch_size": 1,
-            "multi_gpu": True,
+            "multi_gpu": False,
             "gpus":"all",
             "val_split": 0.2,
             "dataloader":"ThreadDataLoader",

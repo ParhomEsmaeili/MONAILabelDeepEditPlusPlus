@@ -622,7 +622,7 @@ class BasicTrainTask(TrainTask):
             torch.cuda.set_device(device)
         else:
             device = torch.device(context.request["device"] if torch.cuda.is_available() else "cpu")
-
+        logger.info(f"Cuda available is :{torch.cuda.is_available()}")
         logger.info(f"{context.local_rank} - Using Device: {device}; IDX: {device.index}")
         return device
 
