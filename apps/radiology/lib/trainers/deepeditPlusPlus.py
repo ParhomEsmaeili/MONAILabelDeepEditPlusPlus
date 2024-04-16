@@ -100,7 +100,7 @@ class DeepEditPlusPlus(BasicTrainTask):
 
     def get_click_transforms(self, context: Context):
         return [
-            #ToDeviced(keys=("image", "label"), device="cuda:0"),
+            ToDeviced(keys=("image", "label"), device="cuda:0"),
             Activationsd(keys="pred", softmax=True),
             AsDiscreted(keys="pred", argmax=True),
             #Temporary measure, not the final resolution for the issue with this code deleting the meta dictionary.
@@ -123,7 +123,7 @@ class DeepEditPlusPlus(BasicTrainTask):
     def train_pre_transforms(self, context: Context):
         return [
             LoadImaged(keys=("image", "label"), reader="ITKReader", image_only=False),
-            #ToDeviced(keys=("image", "label"), device="cuda:0"),
+            ToDeviced(keys=("image", "label"), device="cuda:0"),
             EnsureChannelFirstd(keys=("image", "label")),
             MappingLabelsInDatasetd(keys="label", original_label_names=self.original_dataset_labels, label_names = self._labels, label_mapping=self.label_mapping),
             NormalizeLabelsInDatasetd(keys="label", label_names=self._labels), 
