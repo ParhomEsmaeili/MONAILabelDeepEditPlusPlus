@@ -670,7 +670,7 @@ def main():
 
             #break
         return
-
+    print('cuda_porting_test')
     # Batch Infer
     if args.test == "batch_infer":
 
