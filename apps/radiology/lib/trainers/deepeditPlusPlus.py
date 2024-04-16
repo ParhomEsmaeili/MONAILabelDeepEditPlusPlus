@@ -26,7 +26,7 @@ from monailabel.deepeditPlusPlus.transforms import (
     #ExtractChannelsd,
     MappingLabelsInDatasetd,
     ExtractMeta,
-    IntensityCorrection
+    IntensityCorrection,
 )
 from monai.handlers import MeanDice, from_engine
 from monai.inferers import SimpleInferer
@@ -45,6 +45,7 @@ from monai.transforms import (
     SelectItemsd,
     ToNumpyd,
     ToTensord,
+    ToDeviced,
 )
 
 from monailabel.deepeditPlusPlus.handlers import TensorBoardImageHandler
@@ -75,6 +76,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         self._network = network
         self.original_dataset_labels = original_dataset_labels
         self.label_mapping = label_mapping
+        #self.cuda_device = cuda_device
         #self.extract_channels = extract_channels
         self.spatial_size = spatial_size
         self.target_spacing = target_spacing
@@ -98,6 +100,7 @@ class DeepEditPlusPlus(BasicTrainTask):
 
     def get_click_transforms(self, context: Context):
         return [
+            #ToDeviced(keys=("image", "label"), device="cuda:0"),
             Activationsd(keys="pred", softmax=True),
             AsDiscreted(keys="pred", argmax=True),
             #Temporary measure, not the final resolution for the issue with this code deleting the meta dictionary.
@@ -120,6 +123,7 @@ class DeepEditPlusPlus(BasicTrainTask):
     def train_pre_transforms(self, context: Context):
         return [
             LoadImaged(keys=("image", "label"), reader="ITKReader", image_only=False),
+            #ToDeviced(keys=("image", "label"), device="cuda:0"),
             EnsureChannelFirstd(keys=("image", "label")),
             MappingLabelsInDatasetd(keys="label", original_label_names=self.original_dataset_labels, label_names = self._labels, label_mapping=self.label_mapping),
             NormalizeLabelsInDatasetd(keys="label", label_names=self._labels), 

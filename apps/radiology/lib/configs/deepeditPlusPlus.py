@@ -110,7 +110,7 @@ class DeepEditPlusPlus(TaskConfig):
         num_epochs = self.conf.get("max_epochs", "50")
         dataset_name = self.conf.get("dataset_name", "Task09_Spleen")
         run_mode = self.conf.get("mode", "train")
-
+        
         # Model Files
         self.path = [
             os.path.join(self.model_dir, f"pretrained_{self.name}_{network}.pt"),  # pretrained

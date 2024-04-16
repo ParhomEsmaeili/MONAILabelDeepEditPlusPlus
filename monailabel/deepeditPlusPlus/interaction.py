@@ -214,6 +214,8 @@ class Interaction:
             batchdata = list_data_collate(batchdata_list)
             logger.info("AutoSegmentation Inner Subloop")
             
+        #Here we print whether the input is on the cuda device from the initialisation:
+        logger.info(f'The input image and label directly after the initialisation: Image is on cuda: {batchdata["image"].is_cuda}, Label is on cuda: {batchdata["label"].is_cuda}')
 
         #Here we use the initial segmentations to generate a prediction (our new previous seg) and generate a new set of inputs with this updated previous seg.
         
@@ -222,6 +224,7 @@ class Interaction:
             logger.info("Editing mode Inner Subloop")
             for j in range(self.max_interactions):
                 inputs, _ = engine.prepare_batch(batchdata)
+                #Next line puts the inputs on the cuda device
                 inputs = inputs.to(engine.state.device)
                 
                 if not self.train:
@@ -240,9 +243,14 @@ class Interaction:
                 engine.fire_event(IterationEvents.INNER_ITERATION_STARTED)
                 engine.network.eval()
 
+                #Printing which device the image is on prior to the inner loop prediction.
+                logger.info(f'The input image prior to the inner loop inference: Image is on cuda: {inputs.is_cuda}')
+
                 with torch.no_grad():
+                    logger.info(f'The model prior to the inner loop inference is on device {next(engine.network.parameters()).device}') 
                     if engine.amp:
                         with torch.cuda.amp.autocast():
+                            #Runs the inferer on the cuda device
                             predictions = engine.inferer(inputs, engine.network)
                     else:
                         predictions = engine.inferer(inputs, engine.network)
@@ -266,6 +274,8 @@ class Interaction:
 
                 # decollate/collate batchdata to execute click transforms
                 batchdata_list = decollate_batch(batchdata, detach=True)
+                #Checking whether pred, Image metatensor and label metatensor are on cuda device here:
+                logger.info(f'The pre-click transform inputs: Image is on cuda: {batchdata_list[0]["image"].is_cuda}, Label is on cuda {batchdata_list[0]["label"].is_cuda}, Prediction is on cuda {batchdata_list[0]["pred"].is_cuda}')
                 for i in range(len(batchdata_list)):
                     batchdata_list[i][self.click_probability_key] = (
                         (1.0 - ((1.0 / self.max_interactions) * j)) if self.train else 1.0
@@ -355,4 +365,6 @@ class Interaction:
         # placeholder = np.array(label[0])
         # nib.save(nib.Nifti1Image(placeholder, None), os.path.join('/home/parhomesmaeili/Pictures/label.nii.gz'))
 
+        logger.info(f'For the final inputs the image is on cuda: {batchdata["image"].is_cuda}, the label is on cuda: {batchdata["label"].is_cuda}')
+        logger.info(f'For the engine, amp is {engine.amp}')
         return engine._iteration(engine, batchdata)  # type: ignore[arg-type]

@@ -581,9 +581,9 @@ def main():
     base_directory = up(up(up(os.path.abspath(__file__))))
     print(base_directory)
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--studies", default = "datasets/Task09_Spleen_Split_True_proportion_0.8_channels_All/imagesTs") #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
+    parser.add_argument("-s", "--studies", default = "datasets/Task09_Spleen_Split_True_proportion_0.8_channels_All/imagesTr") #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
     parser.add_argument("-m", "--model", default="deepeditplusplus")
-    parser.add_argument("-t", "--test", default="infer")#"train") #"batch_infer", choices=("train", "infer", "batch_infer"))
+    parser.add_argument("-t", "--test", default="train")#"train") #"batch_infer", choices=("train", "infer", "batch_infer"))
     parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "deepgrow", "3"], help="The subtask/mode which we want to execute")
     parser.add_argument("-e", "--max_epoch", default="250")
     parser.add_argument("-i", "--imaging_modality", default="CT")
@@ -591,7 +591,13 @@ def main():
     args = parser.parse_args()
 
     app_dir = up(__file__)
+
     studies = os.path.join(base_directory, args.studies)
+    
+    ################ Adding the name of the cuda device used ###############
+    cuda_device = torch.cuda.current_device()
+    device_name = torch.cuda.get_device_name(cuda_device)
+    print(device_name)
     conf = {
         "models": args.model,
         "use_pretrained_model": "False",
@@ -604,10 +610,6 @@ def main():
     print(args.test)
     # app = MyApp(app_dir, studies, conf)
 
-    ################ Adding the name of the cuda device used ###############
-    cuda_device = torch.cuda.current_device()
-    device_name = torch.cuda.get_device_name(cuda_device)
-    print(device_name)
 
     # Infer
     if args.test == "infer":
