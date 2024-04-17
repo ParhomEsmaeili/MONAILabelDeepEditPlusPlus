@@ -144,12 +144,12 @@ class DeepEditPlusPlus(TaskConfig):
             download_file(url, self.path[0])
         
 
-        target_spacing_str_list = self.conf.get('target_spacing', ['1.0', '1.0', '1.0'])  # target space for image
-        spatial_size_str_list = self.conf.get('spatial_size', ['128', '128', '128'])  # train input size
+        self.target_spacing = json.loads(self.conf.get('target_spacing', '[1.0, 1.0, 1.0]'))  # target space for image
+        self.spatial_size = json.loads(self.conf.get('spatial_size', '[128, 128, 128]'))  # train input size
 
-        self.target_spacing = tuple([float(i) for i in target_spacing_str_list]) 
-        self.spatial_size = tuple([int(i) for i in spatial_size_str_list])
-        # Network
+        # self.target_spacing = tuple([float(i) for i in target_spacing_str_list]) 
+        # self.spatial_size = tuple([int(i) for i in spatial_size_str_list])
+        # # Network
         self.network = (
             UNETR(
                 spatial_dims=3,
