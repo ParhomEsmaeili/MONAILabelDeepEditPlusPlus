@@ -105,12 +105,12 @@ class NormalizeLabelsInDatasetd(MapTransform):
 
         self.label_names = label_names or {}
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
         for key in self.key_iterator(d):
             # Dictionary containing new label numbers
             new_label_names = {}
-            label = np.zeros(d[key].shape)
+            label = torch.zeros(d[key].shape)
             # Making sure the range values and number of labels are the same
             for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
                 if key_label != "background":
@@ -1092,11 +1092,11 @@ class MappingLabelsInDatasetd(MapTransform):
         self.label_names = label_names
         self.label_mapping = label_mapping 
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]: #np.ndarray]) -> dict[Hashable, np.ndarray]:
         d: dict = dict(data)
         for key in self.key_iterator(d):
             # Dictionary containing new label numbers
-            label = np.zeros(d[key].shape)
+            label = torch.zeros(d[key].shape)
 
             for (key_label, val_label) in self.label_names.items():
                 #For each key label in the "new" config, extract the mapped classes from the original set to the current set

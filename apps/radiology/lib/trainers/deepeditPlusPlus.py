@@ -122,9 +122,10 @@ class DeepEditPlusPlus(BasicTrainTask):
 
     def train_pre_transforms(self, context: Context):
         return [
-            LoadImaged(keys=("image", "label"), reader="ITKReader", image_only=False),
-            ToDeviced(keys=("image", "label"), device="cuda:0"),
+            LoadImaged(keys=("image", "label"), reader="ITKReader", image_only=False, dtype=torch.float32),
             EnsureChannelFirstd(keys=("image", "label")),
+            ToTensord(keys=("image", "label"), track_meta=True),
+            ToDeviced(keys=("image", "label"), device="cuda:0"),
             MappingLabelsInDatasetd(keys="label", original_label_names=self.original_dataset_labels, label_names = self._labels, label_mapping=self.label_mapping),
             NormalizeLabelsInDatasetd(keys="label", label_names=self._labels), 
             Orientationd(keys=["image", "label"], axcodes="RAS"),
@@ -160,8 +161,10 @@ class DeepEditPlusPlus(BasicTrainTask):
 
     def val_pre_transforms(self, context: Context):
         return [
-            LoadImaged(keys=("image", "label"), reader="ITKReader"),
+            LoadImaged(keys=("image", "label"), reader="ITKReader", dtype=torch.float32),
             EnsureChannelFirstd(keys=("image", "label")),
+            #ToTensord(keys=("image", "label"), track_meta=True),
+            ToDeviced(keys=("image", "label"), device="cuda:0"),
             MappingLabelsInDatasetd(keys="label", original_label_names=self.original_dataset_labels, label_names = self._labels, label_mapping=self.label_mapping),
             NormalizeLabelsInDatasetd(keys="label", label_names=self._labels),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
