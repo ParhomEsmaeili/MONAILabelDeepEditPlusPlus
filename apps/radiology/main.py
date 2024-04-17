@@ -587,6 +587,8 @@ def main():
     parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "deepgrow", "3"], help="The subtask/mode which we want to execute")
     parser.add_argument("-e", "--max_epoch", default="250")
     parser.add_argument("-i", "--imaging_modality", default="CT")
+    parser.add_argument("--target_spacing", default=['1','1','1'])
+    parser.add_argument("--spatial_size", default=['128', '128', '128'])
 
     args = parser.parse_args()
 
@@ -603,7 +605,9 @@ def main():
         "use_pretrained_model": "False",
         "max_epochs": args.max_epoch,
         "dataset_name": args.studies[9:-9],
-        "mode": args.test
+        "mode": args.test,
+        "target_spacing":args.target_spacing,
+        "spatial_size":args.spatial_size,
     }
 
     print(args.task)
