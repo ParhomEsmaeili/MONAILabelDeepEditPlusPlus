@@ -25,7 +25,7 @@ from monai.data import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.utils import min_version, optional_import
-from monai.transforms import ScaleIntensityRange
+from monai.transforms import ScaleIntensityRange, ScaleIntensityRangePercentiles, ScaleIntensity
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -1180,8 +1180,8 @@ class IntensityCorrection(MapTransform):
         
         for key in self.key_iterator(d):
             if self.modality == "CT":
+                #TODO: Consider changing this to ScaleIntensity or ScaleIntensityPercentile so that it just does it based off the percentiles in the image..
                 d[key] = ScaleIntensityRange(a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True)(d[key])
             elif self.modality == "MRI":
-                pass #TODO 
-
+                d[key] = ScaleIntensity(minv=0.0, maxv=1.0)(d[key])#b_min=0.0, b_max=1.0, clip=True)(d[key])
         return d 
