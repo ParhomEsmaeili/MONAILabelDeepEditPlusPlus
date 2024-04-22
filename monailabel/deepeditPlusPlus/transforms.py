@@ -37,6 +37,7 @@ distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="di
 import nibabel as nib
 import os 
 from monai.utils import MetaKeys
+import copy 
 
 class DiscardAddGuidanced(MapTransform):
     def __init__(
@@ -1175,7 +1176,7 @@ class IntensityCorrection(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.modality = modality
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
         
         for key in self.key_iterator(d):
