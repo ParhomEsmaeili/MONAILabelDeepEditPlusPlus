@@ -46,6 +46,7 @@ class DeepEditPlusPlus(TaskConfig):
         
         ###################### Setting the location to extract the label configs from ####################
         dir_name = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+        
         label_config_path = os.path.join(dir_name, "monailabel", os.path.splitext(os.path.basename(__file__))[0], self.conf.get('dataset_name') + '_label_configs.txt')
         
         ################### Importing the label configs dictionary #####################
@@ -112,9 +113,19 @@ class DeepEditPlusPlus(TaskConfig):
         run_mode = self.conf.get("mode", "train")
         
         # Model Files
+
+        #Setting the filename automatically based off the settings provided.
+        self.filename = ''
+        len_keys = len(list(self.conf.keys()))
+        for i, key in enumerate(self.conf.keys()):
+            self.filename += key
+            self.filename += f'_{self.conf[key]}'
+            if i != len_keys - 1:
+                self.filename += '_'
+    
         self.path = [
             os.path.join(self.model_dir, f"pretrained_{self.name}_{network}.pt"),  # pretrained
-            os.path.join(self.model_dir, f"{self.name}_{network}_num_epochs_{num_epochs}_dataset_{dataset_name}.pt"),  # published
+            os.path.join(self.model_dir, self.filename + '.pt')#f"{self.name}_{network}_num_epochs_{num_epochs}_dataset_{dataset_name}.pt"),  # published
         ]
 
         ##################### CHANGE IN PLACE TEMPORARILY FOR THE EXTERNAL VALIDATION METRIC SAVES #####################################################
@@ -257,7 +268,7 @@ class DeepEditPlusPlus(TaskConfig):
 
     def trainer(self) -> Optional[TrainTask]:
         #output_dir = os.path.join(self.model_dir, f"{self.name}_" + self.conf.get("network", "dynunet"))
-        output_dir = os.path.join(self.model_dir, f"{self.name}_" + self.conf.get("network","dynunet") + "_num_epochs_" + self.conf.get("max_epochs", "50") + "_dataset_" + self.conf.get("dataset_name", "default"))
+        output_dir = os.path.join(self.model_dir, self.filename) #f"{self.name}_" + self.conf.get("network","dynunet") + "_num_epochs_" + self.conf.get("max_epochs", "50") + "_dataset_" + self.conf.get("dataset_name", "default"))
         load_path = self.path[0] if os.path.exists(self.path[0]) else self.path[1]
 
         task: TrainTask = lib.trainers.DeepEditPlusPlus(

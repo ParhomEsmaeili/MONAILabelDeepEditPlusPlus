@@ -603,8 +603,8 @@ def main():
     conf = {
         "models": args.model,
         "use_pretrained_model": "False",
-        "max_epochs": args.max_epoch,
         "dataset_name": args.studies[9:-9],
+        "max_epochs": args.max_epoch,
         "mode": args.test,
         "target_spacing":args.target_spacing,
         "spatial_size":args.spatial_size,
