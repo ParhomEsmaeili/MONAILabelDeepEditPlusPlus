@@ -9,7 +9,7 @@
 "enhancing tumor":3,
 "background":0
  },
-"label_mapping" = {
+"label_mapping" : {
 "tumor": ["peritumoral edema", "non-enhancing tumor", "enhancing tumor"],
 "background": ["background"]}
 }
