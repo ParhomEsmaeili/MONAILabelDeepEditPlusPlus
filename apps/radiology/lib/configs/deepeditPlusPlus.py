@@ -46,7 +46,7 @@ class DeepEditPlusPlus(TaskConfig):
         
         ###################### Setting the location to extract the label configs from ####################
         dir_name = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
-        label_config_path = os.path.join(dir_name, "monailabel", os.path.splitext(os.path.basename(__file__))[0], 'label_configs.txt')
+        label_config_path = os.path.join(dir_name, "monailabel", os.path.splitext(os.path.basename(__file__))[0], self.conf.get('dataset_name') + '_label_configs.txt')
         
         ################### Importing the label configs dictionary #####################
 
