@@ -18,7 +18,7 @@ from typing import Dict
 from os.path import dirname as up
 import os
 import sys
-file_dir = up(up(up(__file__)))
+file_dir = up(up(up(os.path.abspath(__file__))))
 sys.path.append(file_dir)
 print(sys.path)
 import torch 
