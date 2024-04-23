@@ -248,7 +248,7 @@ class AddGuidanceSignalDeepEditd(MapTransform):
                 signal = np.zeros((1, image.shape[-2], image.shape[-1]), dtype=np.float32)
             return signal
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
         
         if "will_interact" in d.keys():
@@ -256,7 +256,7 @@ class AddGuidanceSignalDeepEditd(MapTransform):
             will_interact = d["will_interact"]
         else: 
             #If there is not, then use the default that it will interact. This is used for the pre-transforms and inference, since we always want guidance to be added
-            will_interact = True 
+            will_interact = True ########
             
 
         if will_interact:
@@ -273,7 +273,7 @@ class AddGuidanceSignalDeepEditd(MapTransform):
                         # Getting signal based on guidance
                         signal = self._get_signal(image, guidance[key_label])
                         #logger.info(f"Guidance signal dimensions are {signal.shape}")
-                        tmp_image = np.concatenate([tmp_image, signal], axis=0)
+                        tmp_image = torch.cat((tmp_image, signal), dim=0) #np.concatenate([tmp_image, signal], axis=0)
 
 
                         # tmp_guidance = guidance[key_label].tolist() if isinstance(guidance[key_label], np.ndarray) else guidance[key_label]
@@ -939,7 +939,7 @@ class FindAllValidSlicesMissingLabelsd(MapTransform):
             sids[key_label] = l_ids
         return sids
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
         for key in self.key_iterator(d):
             if key == "label":
