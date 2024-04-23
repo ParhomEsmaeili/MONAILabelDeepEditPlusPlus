@@ -118,11 +118,15 @@ class DeepEditPlusPlus(TaskConfig):
         self.filename = ''
         len_keys = len(list(self.conf.keys()))
         for i, key in enumerate(self.conf.keys()):
-            self.filename += key
-            self.filename += f'_{self.conf[key]}'
-            if i != len_keys - 1:
-                self.filename += '_'
-    
+            if key == "mode":
+                continue
+            else:
+                self.filename += key
+                self.filename += f'_{self.conf[key]}'
+                if i != len_keys - 1:
+                    self.filename += '_'
+            
+        
         self.path = [
             os.path.join(self.model_dir, f"pretrained_{self.name}_{network}.pt"),  # pretrained
             os.path.join(self.model_dir, self.filename + '.pt')#f"{self.name}_{network}_num_epochs_{num_epochs}_dataset_{dataset_name}.pt"),  # published
