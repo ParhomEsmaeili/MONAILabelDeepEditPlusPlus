@@ -124,7 +124,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         return [
             LoadImaged(keys=("image", "label"), reader="ITKReader", image_only=False, dtype=torch.float32),
             EnsureChannelFirstd(keys=("image", "label")),
-            ToTensord(keys=("image", "label"), track_meta=True),
+            #ToTensord(keys=("image", "label"), track_meta=True),
             ToDeviced(keys=("image", "label"), device="cuda:0"),
             MappingLabelsInDatasetd(keys="label", original_label_names=self.original_dataset_labels, label_names = self._labels, label_mapping=self.label_mapping),
             NormalizeLabelsInDatasetd(keys="label", label_names=self._labels), 
@@ -143,8 +143,8 @@ class DeepEditPlusPlus(BasicTrainTask):
             AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
             AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
             AddSegmentationInputChannels(keys="image", previous_seg_name= None, number_intensity_ch = self.number_intensity_ch, label_names=None, previous_seg_flag= False),
-
-            ToTensord(keys=("image", "label")),
+            ToDeviced(keys=("image", "label"), device="cuda:0"),
+            #ToTensord(keys=("image", "label")),
             SelectItemsd(keys=("image", "label", "label_names")), #"guidance", "label_names")),
         ]
 
@@ -161,7 +161,7 @@ class DeepEditPlusPlus(BasicTrainTask):
 
     def val_pre_transforms(self, context: Context):
         return [
-            LoadImaged(keys=("image", "label"), reader="ITKReader", dtype=torch.float32),
+            LoadImaged(keys=("image", "label"), reader="ITKReader", image_only=False, dtype=torch.float32),
             EnsureChannelFirstd(keys=("image", "label")),
             #ToTensord(keys=("image", "label"), track_meta=True),
             ToDeviced(keys=("image", "label"), device="cuda:0"),
@@ -177,8 +177,8 @@ class DeepEditPlusPlus(BasicTrainTask):
             AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
             AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch),
             AddSegmentationInputChannels(keys="image", previous_seg_name=None, number_intensity_ch = self.number_intensity_ch, label_names=None, previous_seg_flag= False),
-            
-            ToTensord(keys=("image", "label")),
+            ToDeviced(keys=("image", "label"), device="cuda:0"),
+            #ToTensord(keys=("image", "label")),
             SelectItemsd(keys=("image", "label", "label_names")), #"guidance", "label_names")),
         ]
 
