@@ -1,0 +1,15 @@
+{
+"labels":{
+"tumor":1,
+"background":0
+},
+"original_dataset_labels": {
+"peritumoral edema":1,
+"non-enhancing tumor":2,
+"enhancing tumor":3,
+"background":0
+ },
+"label_mapping" : {
+"tumor": ["peritumoral edema", "non-enhancing tumor", "enhancing tumor"],
+"background": ["background"]}
+}

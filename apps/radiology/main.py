@@ -657,7 +657,7 @@ def main():
 
 
         ############### Loading the label configuration #########
-        label_config_path = os.path.join(base_directory, 'monailabel', 'deepeditPlusPlus', 'label_configs.txt')
+        label_config_path = os.path.join(base_directory, 'monailabel', 'deepeditPlusPlus', f'{args.studies[9:-9]}_label_configs.txt')
         with open(label_config_path) as f:
             label_configs = json.load(f)
         # Run on all devices
