@@ -161,7 +161,11 @@ class DeepEditPlusPlus(BasicTrainTask):
 
     def val_pre_transforms(self, context: Context):
         return [
+<<<<<<< HEAD
             LoadImaged(keys=("image", "label"), reader="ITKReader", image_only=False, dtype=torch.float32),
+=======
+            LoadImaged(keys=("image", "label"), reader="ITKReader", image_only=False),
+>>>>>>> main
             EnsureChannelFirstd(keys=("image", "label")),
             #ToTensord(keys=("image", "label"), track_meta=True),
             ToDeviced(keys=("image", "label"), device="cuda:0"),
