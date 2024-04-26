@@ -4,12 +4,12 @@
 "background":0
 },
 "original_dataset_labels": {
-"peritumoral edema":1,
-"non-enhancing tumor":2,
-"enhancing tumor":3,
+"necrotic tumor core":1,
+"peritumoral edematous":2,
+"enhancing tumor":4,
 "background":0
  },
 "label_mapping" : {
-"tumor": ["peritumoral edema", "non-enhancing tumor", "enhancing tumor"],
+"tumor": ["necrotic tumor core", "peritumoral edematous", "enhancing tumor"],
 "background": ["background"]}
 }
