@@ -584,7 +584,7 @@ def main():
     parser.add_argument("-s", "--studies", default = "datasets/BraTS2021_Training_Data_Split_True_proportion_0.8_channels_t2/imagesTr")#"datasets/Task09_Spleen_Split_True_proportion_0.8_channels_All/imagesTr") #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
     parser.add_argument("-m", "--model", default="deepeditplusplus")
     parser.add_argument("-t", "--test", default="train")#"train") #"batch_infer", choices=("train", "infer", "batch_infer"))
-    parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "deepgrow", "3"], help="The subtask/mode which we want to execute")
+    parser.add_argument("-ta", "--task", nargs="+", default='["deepedit", "deepgrow", "3"]', help="The subtask/mode which we want to execute")
     parser.add_argument("-e", "--max_epoch", default="250")
     parser.add_argument("-i", "--imaging_modality", default="MRI") #"CT")
     parser.add_argument("--target_spacing", default='[1,1,1]')
@@ -614,6 +614,7 @@ def main():
     print(args.test)
     # app = MyApp(app_dir, studies, conf)
 
+    task = json.loads(args.task)
 
     # Infer
     if args.test == "infer":
@@ -621,10 +622,10 @@ def main():
         #If testing, and we want the studies folder to be task_specific, so we have shifted the app initialisation.
         ############### Extracting Task Name so that different tests can be executed + have labels saved separately #################
 
-        if len(args.task) > 1:
-            task_name = args.task[0] + "_" + args.task[1] + "_initialisation_" + "numIters_" + args.task[2]
+        if len(task) > 1:
+            task_name = task[0] + "_" + task[1] + "_initialisation_" + "numIters_" + task[2]
         else:
-            task_name = args.task[0]
+            task_name = task[0]
 
         studies_test_dir = studies + f"_{task_name}"
         #Create a separate folder copy for the subtask (more compatible with the current datastore object and methods)
@@ -670,7 +671,7 @@ def main():
                 image_id = sample["id"]
                 image_path = sample["path"] 
                 
-                inner_loop_runner(app, request_templates= request_templates, task_configs= args.task, image_info = [image_id, image_path], device = device, output_dir = studies_test_dir, label_configs = label_configs)
+                inner_loop_runner(app, request_templates= request_templates, task_configs= task, image_info = [image_id, image_path], device = device, output_dir = studies_test_dir, label_configs = label_configs)
 
             #break
         return
