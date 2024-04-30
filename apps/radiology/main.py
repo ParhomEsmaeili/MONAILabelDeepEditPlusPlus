@@ -584,7 +584,7 @@ def main():
     parser.add_argument("-s", "--studies", default = "datasets/BraTS2021_Training_Data_Split_True_proportion_0.8_channels_t2/imagesTr")#"datasets/Task09_Spleen_Split_True_proportion_0.8_channels_All/imagesTr") #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
     parser.add_argument("-m", "--model", default="deepeditplusplus")
     parser.add_argument("-t", "--test", default="train")#"train") #"batch_infer", choices=("train", "infer", "batch_infer"))
-    parser.add_argument("-ta", "--task", nargs="+", default='["deepedit", "deepgrow", "3"]', help="The subtask/mode which we want to execute")
+    parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "deepgrow", "3"], help="The subtask/mode which we want to execute")
     parser.add_argument("-e", "--max_epoch", default="250")
     parser.add_argument("-i", "--imaging_modality", default="MRI") #"CT")
     parser.add_argument("--target_spacing", default='[1,1,1]')
@@ -614,7 +614,7 @@ def main():
     print(args.test)
     # app = MyApp(app_dir, studies, conf)
 
-    task = json.loads(args.task)
+    task = args.task
 
     # Infer
     if args.test == "infer":
