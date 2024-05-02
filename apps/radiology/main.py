@@ -581,7 +581,7 @@ def main():
     base_directory = up(up(up(os.path.abspath(__file__))))
     print(base_directory)
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--studies", default = "datasets/BraTS2021_Training_Data_Split_True_proportion_0.8_channels_t2/imagesTr")#"datasets/Task09_Spleen_Split_True_proportion_0.8_channels_All/imagesTr") #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
+    parser.add_argument("-s", "--studies", default = "datasets/BraTS2021_Training_Data_Split_True_proportion_0.8_channels_t2_resized_FLIRT/imagesTr")#"datasets/Task09_Spleen_Split_True_proportion_0.8_channels_All/imagesTr") #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
     parser.add_argument("-m", "--model", default="deepeditplusplus")
     parser.add_argument("-t", "--test", default="train")#"train") #"batch_infer", choices=("train", "infer", "batch_infer"))
     parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "deepgrow", "3"], help="The subtask/mode which we want to execute")
@@ -589,6 +589,7 @@ def main():
     parser.add_argument("-i", "--imaging_modality", default="MRI") #"CT")
     parser.add_argument("--target_spacing", default='[1,1,1]')
     parser.add_argument("--spatial_size", default='[128, 128, 128]')
+    parser.add_argument("--divisible_padding_factor", default='[64,64,32]')
 
     args = parser.parse_args()
 
@@ -608,6 +609,7 @@ def main():
         "mode": args.test,
         "target_spacing":args.target_spacing,
         "spatial_size":args.spatial_size,
+        "divisible_padding_factor":args.divisible_padding_factor
     }
 
     print(args.task)

@@ -161,6 +161,7 @@ class DeepEditPlusPlus(TaskConfig):
 
         self.target_spacing = json.loads(self.conf.get('target_spacing', '[1.0, 1.0, 1.0]'))  # target space for image
         self.spatial_size = json.loads(self.conf.get('spatial_size', '[128, 128, 128]'))  # train input size
+        self.divisible_padding_factor = json.loads(self.conf.get('divisible_padding_factor', '[64, 64, 32]'))
 
         # self.target_spacing = tuple([float(i) for i in target_spacing_str_list]) 
         # self.spatial_size = tuple([int(i) for i in spatial_size_str_list])
@@ -241,6 +242,7 @@ class DeepEditPlusPlus(TaskConfig):
                 preload=strtobool(self.conf.get("preload", "false")),
                 spatial_size=self.spatial_size,
                 target_spacing=self.target_spacing,
+                divisible_padding_factor=self.divisible_padding_factor,
                 number_intensity_ch=self.number_intensity_ch,
                 config={"cache_transforms": True, "cache_transforms_in_memory": True, "cache_transforms_ttl": 300},
             ),
@@ -253,6 +255,7 @@ class DeepEditPlusPlus(TaskConfig):
                 preload=strtobool(self.conf.get("preload", "false")),
                 spatial_size=self.spatial_size,
                 target_spacing=self.target_spacing,
+                divisible_padding_factor= self.divisible_padding_factor,
                 number_intensity_ch=self.number_intensity_ch,
                 type=InferType.SEGMENTATION,
             ),
@@ -265,6 +268,7 @@ class DeepEditPlusPlus(TaskConfig):
                 preload=strtobool(self.conf.get("preload","false")),
                 spatial_size=self.spatial_size,
                 target_spacing=self.target_spacing,
+                divisible_padding_factor=self.divisible_padding_factor, 
                 number_intensity_ch=self.number_intensity_ch,
                 type=InferType.DEEPGROW
             )
@@ -284,6 +288,7 @@ class DeepEditPlusPlus(TaskConfig):
             publish_path=self.path[1],
             spatial_size=self.spatial_size,
             target_spacing=self.target_spacing,
+            divisible_padding_factor=self.divisible_padding_factor,
             number_intensity_ch=self.number_intensity_ch,
             config={"pretrained": strtobool(self.conf.get("use_pretrained_model", "true"))},
             labels=self.labels,

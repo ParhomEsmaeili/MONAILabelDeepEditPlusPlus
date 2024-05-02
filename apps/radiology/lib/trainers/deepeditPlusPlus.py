@@ -46,6 +46,8 @@ from monai.transforms import (
     ToNumpyd,
     ToTensord,
     ToDeviced,
+    DivisiblePadd,
+    CenterSpatialCropd
 )
 
 from monailabel.deepeditPlusPlus.handlers import TensorBoardImageHandler
@@ -63,7 +65,8 @@ class DeepEditPlusPlus(BasicTrainTask):
         label_mapping,
         #extract_channels,
         description="Train DeepEdit model for 3D Images",
-        spatial_size=(128, 128, 64),
+        spatial_size=(128, 128, 128),
+        divisible_padding_factor=[128,128,128],
         target_spacing=(1.0, 1.0, 1.0),
         number_intensity_ch=1,
         deepgrow_probability_train= 0.5,
@@ -79,6 +82,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         #self.cuda_device = cuda_device
         #self.extract_channels = extract_channels
         self.spatial_size = spatial_size
+        self.divisible_padding_factor = divisible_padding_factor
         self.target_spacing = target_spacing
         self.number_intensity_ch = number_intensity_ch
         self.deepgrow_probability_train = deepgrow_probability_train
@@ -130,13 +134,16 @@ class DeepEditPlusPlus(BasicTrainTask):
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             # This transform may not work well for MR images
             IntensityCorrection(keys="image", modality = context.imaging_modality),
-            #ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
+            #Here we will pad and crop the image to fit the requirements of the backbone architecture
+            DivisiblePadd(keys=("image", "label"), k=self.divisible_padding_factor),
+            CenterSpatialCropd(keys=("image", "label"), roi_size=self.spatial_size),
+
             RandFlipd(keys=("image", "label"), spatial_axis=[0], prob=0.10),
             RandFlipd(keys=("image", "label"), spatial_axis=[1], prob=0.10),
             RandFlipd(keys=("image", "label"), spatial_axis=[2], prob=0.10),
             RandRotate90d(keys=("image", "label"), prob=0.10, max_k=3),
             RandShiftIntensityd(keys="image", offsets=0.10, prob=0.50),
-            Resized(keys=("image", "label"), spatial_size=self.spatial_size, mode=("area", "nearest")),
+            #Resized(keys=("image", "label"), spatial_size=self.spatial_size, mode=("area", "nearest")),
             # Transforms for click simulation (depracated)
             FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
             AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
@@ -167,8 +174,10 @@ class DeepEditPlusPlus(BasicTrainTask):
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             # This transform may not work well for MR images
             IntensityCorrection(keys="image", modality = context.imaging_modality),
+            DivisiblePadd(keys=("image", "label"), k=self.divisible_padding_factor),
+            CenterSpatialCropd(keys=("image", "label"), roi_size=self.spatial_size),
             #ScaleIntensityRanged(keys=("image"), a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
-            Resized(keys=("image", "label"), spatial_size=self.spatial_size, mode=("area", "nearest")),
+            #Resized(keys=("image", "label"), spatial_size=self.spatial_size, mode=("area", "nearest")),
             # Transforms for click simulation 
             FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
             AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
