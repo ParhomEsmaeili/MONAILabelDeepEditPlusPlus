@@ -33,6 +33,8 @@ from monai.transforms import (
     ScaleIntensityRanged,
     SqueezeDimd,
     ToNumpyd,
+    DivisiblePadd,
+    CenterSpatialCropd
 )
 
 from monailabel.interfaces.tasks.infer_v2 import InferType
@@ -62,8 +64,9 @@ class DeepEditPlusPlus(BasicInferTask):
         type=InferType.DEEPEDIT,
         labels=None,
         dimension=3,
-        spatial_size=(128, 128, 64),
+        spatial_size=(128, 128, 128),
         target_spacing=(1.0, 1.0, 1.0),
+        divisible_padding_factor=[128,128,128],
         number_intensity_ch=1,
         description="A DeepEdit model for volumetric (3D) segmentation over 3D Images",
         **kwargs,
@@ -88,6 +91,7 @@ class DeepEditPlusPlus(BasicInferTask):
         #######
         self.spatial_size = spatial_size
         self.target_spacing = target_spacing
+        self.divisible_padding_factor = divisible_padding_factor
         self.number_intensity_ch = number_intensity_ch
         self.load_strict = False
         #self.extract_channels = extract_channels
@@ -106,8 +110,8 @@ class DeepEditPlusPlus(BasicInferTask):
                 IntensityCorrection(keys="image", modality=data["imaging_modality"]),
                 #MappingLabelsInDatasetd(keys="previous_seg",original_label_names=self.original_dataset_labels, label_names = self.labels, label_mapping=self.label_mapping),
                 AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
-                Resized(keys=["image", "previous_seg"], spatial_size=self.spatial_size, mode=["area", "nearest"]),
-                ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
+                #Resized(keys=["image", "previous_seg"], spatial_size=self.spatial_size, mode=["area", "nearest"]),
+                #ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
                 AddGuidanceSignalDeepEditd(
                     keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch, label_names = self.labels
                 ),
@@ -128,8 +132,8 @@ class DeepEditPlusPlus(BasicInferTask):
                     [   
             
                         AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
-                        Resized(keys="image", spatial_size=self.spatial_size, mode="area"),
-                        ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
+                        #Resized(keys="image", spatial_size=self.spatial_size, mode="area"),
+                        #ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
                         AddGuidanceSignalDeepEditd(
                             keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch, label_names = self.labels
                         ),
@@ -140,14 +144,15 @@ class DeepEditPlusPlus(BasicInferTask):
             elif self.type == InferType.SEGMENTATION:
                 t.extend(
                     [
-                        Resized(keys="image", spatial_size=self.spatial_size, mode="area"),
+                        #Resized(keys="image", spatial_size=self.spatial_size, mode="area"),
                         DiscardAddGuidanced(
                             keys="image", label_names=self.labels, number_intensity_ch=self.number_intensity_ch
                         ),
                         AddSegmentationInputChannels(keys="image", number_intensity_ch = self.number_intensity_ch, label_names=self.labels, previous_seg_flag= False),
                     ]
                 )
-
+        t.append(DivisiblePadd(keys=("image"), k=self.divisible_padding_factor))
+        t.append(CenterSpatialCropd(keys=("image"),roi_size=self.spatial_size)) #Potential issue with inverse if we crop out regions which are non-zero in the image.
         t.append(EnsureTyped(keys="image", device=data.get("device") if data else None))
         return t
 

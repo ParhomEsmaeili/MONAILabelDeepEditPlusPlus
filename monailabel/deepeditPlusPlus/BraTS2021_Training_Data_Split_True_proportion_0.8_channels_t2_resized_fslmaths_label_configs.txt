@@ -1,0 +1,16 @@
+{
+"labels":{
+"tumor":1,
+"background":0
+},
+"original_dataset_labels": {
+"necrotic tumor core":1,
+"peritumoral edematous":2,
+"dummy":3,
+"enhancing tumor":4,
+"background":0
+ },
+"label_mapping" : {
+"tumor": ["necrotic tumor core", "peritumoral edematous", "dummy", "enhancing tumor"],
+"background": ["background"]}
+}
