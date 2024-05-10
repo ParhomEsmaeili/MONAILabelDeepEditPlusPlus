@@ -67,7 +67,8 @@ from monai.transforms import (
     EnsureChannelFirstd,
     Orientationd,
     ToNumpyd,
-    Resized
+    Resized,
+    DivisiblePadd
 ) 
 from monailabel.deepeditPlusPlus.transforms import (
     MappingLabelsInDatasetd,
@@ -371,14 +372,14 @@ def inner_loop_runner(app, request_templates, task_configs, image_info, device, 
             #Discrepancy save folder:
 
             if i != num_iterations:
-                discrepancy_folder_path = os.path.join(output_dir, 'labels', subsequent_task + ' resized_discrepancy', 'iteration_' + str(i), image_id)
+                discrepancy_folder_path = os.path.join(output_dir, 'labels', subsequent_task + ' padded_discrepancy', 'iteration_' + str(i), image_id)
                 os.makedirs(discrepancy_folder_path, exist_ok=True)
 
                 for label_class in discrepancy_output_dict["label_names"].keys():
                     
                     nib.save(nib.Nifti1Image(np.array(discrepancy_output_dict[f"discrepancy_{label_class}"])[0], None), os.path.join(discrepancy_folder_path, f"discrepancy_{label_class}.nii.gz"))
             else:
-                discrepancy_folder_path = os.path.join(output_dir, 'labels', subsequent_task + ' resized_discrepancy', 'final', image_id)
+                discrepancy_folder_path = os.path.join(output_dir, 'labels', subsequent_task + ' padded_discrepancy', 'final', image_id)
                 os.makedirs(discrepancy_folder_path, exist_ok=True)
 
                 for label_class in discrepancy_output_dict["label_names"].keys():
@@ -511,7 +512,8 @@ def click_simulation(inference_request, label_configs, clicking_task, gt_path):
             discrepancy="discrepancy",
             probability="probability",
         ),
-        Resized(keys=["label"], spatial_size=(128, 128, 128), mode=["nearest"]),
+        DivisiblePadd(keys="label", k=[64,64,32])
+        #Resized(keys=["label"], spatial_size=(128, 128, 128), mode=["nearest"]),
         ]
     
     transform_output_dict = Compose(transforms=composed_transform, map_items = False)(input_dict)
@@ -522,13 +524,13 @@ def click_simulation(inference_request, label_configs, clicking_task, gt_path):
         discrepancy_resizing_dict = transform_output_dict.copy()
         #Obtaining a list of input keys for each of the classes that we want to save a discrepancy map for
         input_keys = []
-        mode_keys = []
+        #mode_keys = []
         for label_class in discrepancy_resizing_dict["labels"].keys():
             discrepancy_resizing_dict[f"discrepancy_{label_class}"] = transform_output_dict["discrepancy"][label_class][0]
             input_keys.append(f"discrepancy_{label_class}")
-            mode_keys.append("nearest")
+            #mode_keys.append("nearest")
 
-        discrepancy_output_dict = Compose(Resized(keys=input_keys, spatial_size=(128, 128, 128), mode=mode_keys), map_items=False)(discrepancy_resizing_dict)
+        discrepancy_output_dict = Compose(DivisiblePadd(keys=input_keys, k=[64,64,32]), map_items=False)(discrepancy_resizing_dict)
         
         #splitting the original dict also, for the full sized discrepancies
         for label_class in transform_output_dict["labels"].keys():
@@ -581,15 +583,17 @@ def main():
     base_directory = up(up(up(os.path.abspath(__file__))))
     print(base_directory)
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--studies", default = "datasets/BraTS2021_Training_Data_Split_True_proportion_0.8_channels_t2_resized_FLIRT/imagesTr")#"datasets/Task09_Spleen_Split_True_proportion_0.8_channels_All/imagesTr") #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
+    parser.add_argument("-s", "--studies", default = "datasets/BraTS2021_Training_Data_Split_True_proportion_0.8_channels_t2_resized_FLIRT/imagesTr")# #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
     parser.add_argument("-m", "--model", default="deepeditplusplus")
     parser.add_argument("-t", "--test", default="train")#"train") #"batch_infer", choices=("train", "infer", "batch_infer"))
-    parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "deepgrow", "3"], help="The subtask/mode which we want to execute")
+    parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "autoseg", "3"], help="The subtask/mode which we want to execute")
     parser.add_argument("-e", "--max_epoch", default="250")
     parser.add_argument("-i", "--imaging_modality", default="MRI") #"CT")
     parser.add_argument("--target_spacing", default='[1,1,1]')
-    parser.add_argument("--spatial_size", default='[128, 128, 128]')
+    parser.add_argument("--spatial_size", default='[128,128,128]')
     parser.add_argument("--divisible_padding_factor", default='[64,64,32]')
+    parser.add_argument("--checkpoint")
+    parser.add_argument("--datetime")
 
     args = parser.parse_args()
 
@@ -601,20 +605,49 @@ def main():
     cuda_device = torch.cuda.current_device()
     device_name = torch.cuda.get_device_name(cuda_device)
     print(device_name)
-    conf = {
-        "models": args.model,
-        "use_pretrained_model": "False",
-        "dataset_name": args.studies[9:-9],
-        "max_epochs": args.max_epoch,
-        "mode": args.test,
-        "target_spacing":args.target_spacing,
-        "spatial_size":args.spatial_size,
-        "divisible_padding_factor":args.divisible_padding_factor
-    }
 
-    print(args.task)
-    print(args.test)
-    # app = MyApp(app_dir, studies, conf)
+
+    ############### Adding flexibility for selecting which set of model weights to use #####################
+    if args.test == "train":
+
+        conf = {
+            "models": args.model,
+            "use_pretrained_model": "False",
+            "dataset_name": args.studies[9:-9],
+            "max_epochs": args.max_epoch,
+            "save_interval": 20,
+            "mode": args.test,
+            "target_spacing":args.target_spacing,
+            "spatial_size":args.spatial_size,
+            "divisible_padding_factor":args.divisible_padding_factor
+        }
+    elif args.test == "infer":
+        if args.checkpoint != None:
+            conf = {
+                "models": args.model,
+                "use_pretrained_model": "False",
+                "dataset_name": args.studies[9:-9],
+                "max_epochs": args.max_epoch,
+                "mode": args.test,
+                "target_spacing":args.target_spacing,
+                "spatial_size":args.spatial_size,
+                "divisible_padding_factor":args.divisible_padding_factor,
+                "checkpoint": args.checkpoint,
+                "datetime": args.datetime,
+            }
+        else:
+            conf = {
+                "models": args.model,
+                "use_pretrained_model": "False",
+                "dataset_name": args.studies[9:-9],
+                "max_epochs": args.max_epoch,
+                "mode": args.test,
+                "target_spacing":args.target_spacing,
+                "spatial_size":args.spatial_size,
+                "divisible_padding_factor":args.divisible_padding_factor,
+                "datetime": args.datetime
+            }
+
 
     task = args.task
 
@@ -629,7 +662,12 @@ def main():
         else:
             task_name = task[0]
 
-        studies_test_dir = studies + f"_{task_name}"
+        ############# Creating the string for the model version so that we can save each output segmentation problem into its own separate folder ############
+        model_version = args.datetime 
+        model_checkpoint = args.checkpoint if args.checkpoint != None else 'best_val_score_epoch'
+        
+        print(model_checkpoint)
+        studies_test_dir = os.path.join(studies + f"_{task_name}", model_version, model_checkpoint)
         #Create a separate folder copy for the subtask (more compatible with the current datastore object and methods)
         if os.path.exists(studies_test_dir):
             shutil.rmtree(studies_test_dir)
@@ -663,6 +701,9 @@ def main():
         label_config_path = os.path.join(base_directory, 'monailabel', 'deepeditPlusPlus', f'{args.studies[9:-9]}_label_configs.txt')
         with open(label_config_path) as f:
             label_configs = json.load(f)
+
+        #####################################################
+        
         # Run on all devices
         for device in device_list():
 

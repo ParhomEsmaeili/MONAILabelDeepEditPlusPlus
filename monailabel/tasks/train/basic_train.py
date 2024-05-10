@@ -181,7 +181,10 @@ class BasicTrainTask(TrainTask):
 
         self._train_save_interval = train_save_interval
         self._val_interval = val_interval
+        #CHANGING N_SAVED SO WE DONT ERASE CHECKPOINTS!
+        # self._n_saved = self._config["max_epochs"]//self._train_save_interval
         self._n_saved = n_saved
+
         self._final_filename = final_filename
         self._key_metric_filename = key_metric_filename
         self._model_dict_key = model_dict_key

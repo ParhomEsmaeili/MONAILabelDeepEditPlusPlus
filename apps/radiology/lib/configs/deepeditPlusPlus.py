@@ -32,7 +32,9 @@ from monailabel.utils.others.generic import download_file, strtobool
 import csv
 import shutil
 import json
-
+import datetime 
+from os.path import dirname as up 
+import copy 
 logger = logging.getLogger(__name__)
 
 
@@ -45,7 +47,7 @@ class DeepEditPlusPlus(TaskConfig):
 
         
         ###################### Setting the location to extract the label configs from ####################
-        dir_name = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+        dir_name = up(up(up(up(up(__file__)))))
         
         label_config_path = os.path.join(dir_name, "monailabel", os.path.splitext(os.path.basename(__file__))[0], self.conf.get('dataset_name') + '_label_configs.txt')
         
@@ -57,6 +59,8 @@ class DeepEditPlusPlus(TaskConfig):
         self.labels = config_dict["labels"]
         self.original_dataset_labels = config_dict["original_dataset_labels"]
         self.label_mapping = config_dict["label_mapping"]
+
+        ###################################################################################
 
         # #BRATS CONFIGURATION format #######
         
@@ -106,40 +110,78 @@ class DeepEditPlusPlus(TaskConfig):
         self.number_intensity_ch = 1
 
         
-
+        ########################### Extracting the parameters which are used for naming model files/checkpoints/finding checkpoint paths etc.
         network = self.conf.get("network", "dynunet")
-        num_epochs = self.conf.get("max_epochs", "50")
-        dataset_name = self.conf.get("dataset_name", "Task09_Spleen")
-        run_mode = self.conf.get("mode", "train")
+        model_name = self.conf.pop("checkpoint", None) #If a specific checkpoint/save is being used, else use the default. 
+
+
+        #Adding the datetime for saving the model weights for train, or extracting the datetime set in the inference script:
+        if self.conf.get("mode") == "train":
+            self.datetime_now = datetime.datetime.now().strftime("%d%m%Y_%H%M%S")
+        else:
+            self.datetime_now = self.conf.pop("datetime")
+
+        ################ Extracting parameters which dicate how many epochs/interval size for saving checkpoints ####################
+        
+        self.max_epochs = self.conf.get("max_epochs", 50)
+        self.save_interval = self.conf.get("save_interval", 10)
+        #dataset_name = self.conf.get("dataset_name", "Task09_Spleen")
+        
         
         # Model Files
 
-        #Setting the filename automatically based off the settings provided.
-        self.filename = ''
-        len_keys = len(list(self.conf.keys()))
-        for i, key in enumerate(self.conf.keys()):
-            if key == "mode":
-                continue
-            else:
-                self.filename += key
-                self.filename += f'_{self.conf[key]}'
-                if i != len_keys - 1:
-                    self.filename += '_'
+        #Setting the filename automatically based off the settings provided. If not using checkpoint: DEPRECATED_WE SAVE THIS INSTEAD TO A TXT FILE. The models 
+        #are kept separate through the use of the datetime!
+
+        
+        self.filename = 'models'
+        # len_keys = len(list(self.conf.keys()))
+        # for i, key in enumerate(self.conf.keys()):
+        #     if key == "mode":
+        #         continue
+        #     else:
+        #         self.filename += key
+        #         self.filename += f'_{self.conf[key]}'
+        #         if i != len_keys - 1:
+        #             self.filename += '_'
+        
+        ###### Name of the text file which we are going to save our non-default hyperparam (non-default params) info to ##################
+
+        hyperparams_filename = 'optional_hyperparam_settings.txt'
+
+        if self.conf.get("mode") == "train":
+            #create a duplicate dict without the mode name:
+            duplicate_conf = copy.deepcopy(self.conf)
+            del duplicate_conf["mode"]
+            
+            os.makedirs(os.path.join(self.model_dir, self.datetime_now))
+            with open(os.path.join(self.model_dir, self.datetime_now, hyperparams_filename), 'w') as file:
+                file.write(json.dumps(duplicate_conf))
+                
+
+        if model_name == None:
+            model_weights_path = os.path.join(self.model_dir, self.datetime_now, self.filename + '.pt')
+            #In this case we use the default saved weights:
+        else:
+            model_weights_path = os.path.join(self.model_dir, self.datetime_now, self.filename, 'train_01', model_name + '.pt')
             
         
         self.path = [
             os.path.join(self.model_dir, f"pretrained_{self.name}_{network}.pt"),  # pretrained
-            os.path.join(self.model_dir, self.filename + '.pt')#f"{self.name}_{network}_num_epochs_{num_epochs}_dataset_{dataset_name}.pt"),  # published
+            model_weights_path   #f"{self.name}_{network}_num_epochs_{num_epochs}_dataset_{dataset_name}.pt"),  # published
         ]
 
         ##################### CHANGE IN PLACE TEMPORARILY FOR THE EXTERNAL VALIDATION METRIC SAVES #####################################################
-        output_dir = os.path.join(os.path.expanduser('~'), 'external_validation', dataset_name)
-        output_dir_scores = os.path.join(output_dir, 'validation_scores')
-        output_dir_images = os.path.join(output_dir, 'validation_images_verif')
+        self.external_validation_output_dir = os.path.join(up(up(up(up(up(model_dir))))), 'external_validation', self.datetime_now, self.filename)
+            
+        output_dir_scores = os.path.join(self.external_validation_output_dir, 'validation_scores')
+        output_dir_images = os.path.join(self.external_validation_output_dir, 'validation_images_verif')
+
+        run_mode = self.conf.get("mode", "train")
 
         if run_mode == "train":
-            if os.path.exists(output_dir):
-                shutil.rmtree(output_dir)
+            if os.path.exists(self.external_validation_output_dir):
+                shutil.rmtree(self.external_validation_output_dir)
 
             os.makedirs(output_dir_scores)
             os.makedirs(output_dir_images)
@@ -150,6 +192,16 @@ class DeepEditPlusPlus(TaskConfig):
                 writer = csv.writer(f)
                 writer.writerow(fields) 
         
+
+        ######### Adding the settings file to the external validation folder also! ################
+        if self.conf.get("mode") == "train":
+            #create a duplicate dict without the mode name:
+            duplicate_conf = copy.deepcopy(self.conf)
+            del duplicate_conf["mode"]
+
+            with open(os.path.join(self.external_validation_output_dir, hyperparams_filename), 'w') as file:
+                file.write(json.dumps(duplicate_conf))
+
         ################################################################################################################################################
         #--conf use_pretrained_model false will disable this, or we can change it in the code.
         # Download PreTrained Model
@@ -276,7 +328,7 @@ class DeepEditPlusPlus(TaskConfig):
 
     def trainer(self) -> Optional[TrainTask]:
         #output_dir = os.path.join(self.model_dir, f"{self.name}_" + self.conf.get("network", "dynunet"))
-        output_dir = os.path.join(self.model_dir, self.filename) #f"{self.name}_" + self.conf.get("network","dynunet") + "_num_epochs_" + self.conf.get("max_epochs", "50") + "_dataset_" + self.conf.get("dataset_name", "default"))
+        output_dir = os.path.join(self.model_dir, self.datetime_now, self.filename) #f"{self.name}_" + self.conf.get("network","dynunet") + "_num_epochs_" + self.conf.get("max_epochs", "50") + "_dataset_" + self.conf.get("dataset_name", "default"))
         load_path = self.path[0] if os.path.exists(self.path[0]) else self.path[1]
 
         task: TrainTask = lib.trainers.DeepEditPlusPlus(
@@ -284,6 +336,8 @@ class DeepEditPlusPlus(TaskConfig):
             network=self.network,
             original_dataset_labels=self.original_dataset_labels,
             label_mapping=self.label_mapping,
+            external_validation_dir=self.external_validation_output_dir, 
+            n_saved=int(self.max_epochs) // self.save_interval,
             load_path=load_path,
             publish_path=self.path[1],
             spatial_size=self.spatial_size,

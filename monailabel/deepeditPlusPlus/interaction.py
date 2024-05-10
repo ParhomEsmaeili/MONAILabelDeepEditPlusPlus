@@ -32,6 +32,7 @@ from monai.handlers import MeanDice
 from monai.metrics import DiceHelper, DiceMetric, do_metric_reduction 
 from monai.transforms import Activations, AsDiscrete 
 from monai.utils import MetricReduction
+import copy
 
 from datetime import datetime
 
@@ -66,6 +67,7 @@ class Interaction:
         #label_names: None | dict[str, int] = None,
         click_probability_key: str = "probability",
         max_interactions: int = 1,
+        external_validation_output_dir:str = None
     ) -> None:
         self.deepgrow_probability = deepgrow_probability
         self.deepedit_probability = deepedit_probability
@@ -75,6 +77,7 @@ class Interaction:
         #self.label_names = label_names
         self.click_probability_key = click_probability_key
         self.max_interactions = max_interactions
+        self.external_validation_output_dir = external_validation_output_dir 
 
     def __call__(self, engine: SupervisedTrainer | SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         if batchdata is None:
@@ -86,7 +89,7 @@ class Interaction:
         meta_dict_filename = batchdata["image"].meta["filename_or_obj"][0]
         studies_name = meta_dict_filename.split('/')[meta_dict_filename.split('/').index('datasets') + 1]
         
-        output_dir = os.path.join(os.path.expanduser('~'), 'external_validation', studies_name)
+        output_dir = os.path.join(self.external_validation_output_dir)#, 'external_validation', studies_name)
 
             #TODO figure out how to get to save this within the folder that already exists for the save?
         if not os.path.exists(output_dir):
@@ -94,10 +97,11 @@ class Interaction:
 
         #################################################### Implementation of validation in-the-loop so that we can validate across all modes. ##############################
         #We just do autoseg and deepgrow for now, deepedit (the deepgrow pre-transform one) is already done as part of the default validation).
-        if not True: # self.train:
+        if not self.train:
             #If validating, make a diff copy of the params e.g. batchdata so it does not affect the normal validation. For some reason I believe this does not do anything, it still affects the original batchdata, maybe because of the engine..
             
-            batchdata_val_deepgrow = batchdata.copy()
+            ######################################### THESE VALIDATION METHODS ONLY APPLY FOR BATCH SIZE 1 ######################################
+            batchdata_val_deepgrow = copy.deepcopy(batchdata)
             #First we compute the deepgrow based mode validations:
             inputs_val_deepgrow, _ = engine.prepare_batch(batchdata_val_deepgrow)
             inputs_val_deepgrow = inputs_val_deepgrow.to(engine.state.device)
@@ -114,7 +118,7 @@ class Interaction:
                     predictions_val_deepgrow = engine.inferer(inputs_val_deepgrow, engine.network)
             
             #Now we do autoseg based mode validations:
-            batchdata_val_autoseg = batchdata.copy()
+            batchdata_val_autoseg = copy.deepcopy(batchdata)
 
             batchdata_list_val_autoseg = decollate_batch(batchdata_val_autoseg, detach=True)
             for i in range(self.num_intensity_channel, self.num_intensity_channel + len(label_names)):
@@ -158,22 +162,26 @@ class Interaction:
 
             #TODO: Add the computation of the metrics here:
             deepgrow_dice = DiceHelper(  # type: ignore
-                include_background=False,
-                reduction=MetricReduction.MEAN,
-                get_not_nans=False,
-                softmax=False,
-                ignore_empty=True,
-                num_classes=None,
-                )(y_pred=deepgrow_discretised_pred.cpu(), y=discretised_label)
+                include_background= False,
+                sigmoid = False,
+                softmax = False, 
+                activate = False,
+                get_not_nans = False,
+                reduction = MetricReduction.MEAN, #MetricReduction.MEAN,
+                ignore_empty = True,
+                num_classes = None
+                )(y_pred=deepgrow_discretised_pred.cpu().unsqueeze(dim=0), y=discretised_label.unsqueeze(dim=0))
             
             autoseg_dice = DiceHelper(  # type: ignore
-                include_background=False,
-                reduction=MetricReduction.MEAN,
-                get_not_nans=False,
-                softmax=False,
-                ignore_empty=True,
-                num_classes=None,
-                )(y_pred=autoseg_discretised_pred.cpu(), y=discretised_label)
+                include_background= False,
+                sigmoid = False,
+                softmax = False, 
+                activate = False,
+                get_not_nans = False,
+                reduction = MetricReduction.MEAN, #MetricReduction.MEAN,
+                ignore_empty = True,
+                num_classes = None
+                )(y_pred=autoseg_discretised_pred.cpu().unsqueeze(dim=0), y=discretised_label.unsqueeze(dim=0))
             
 
 
@@ -201,7 +209,7 @@ class Interaction:
         ######################################################### Normal implementation of DeepEdit++ #########################################################################
 
         if np.random.choice([True, False], p=[self.deepgrow_probability, 1 - self.deepgrow_probability]): #TODO: should this be done as a subclass of the randomizable class, so that we can use fixed seeds for this also?
-            #Here we run the loop for Deepgrow
+            #Here we run the loop for Deepgrow (which is the default)
             logger.info("Grow from prompts Inner Subloop")
             
         
@@ -209,8 +217,9 @@ class Interaction:
             #Here we run the loop for generating autoseg prompt channels
             # zero out input guidance channels
             batchdata_list = decollate_batch(batchdata, detach=True)
-            for i in range(self.num_intensity_channel, self.num_intensity_channel + len(label_names)):
-                batchdata_list[0][CommonKeys.IMAGE][i] *= 0
+            for k in range(len(batchdata_list)):
+                for i in range(self.num_intensity_channel, self.num_intensity_channel + len(label_names)):
+                    batchdata_list[k][CommonKeys.IMAGE][i] *= 0
             batchdata = list_data_collate(batchdata_list)
             logger.info("AutoSegmentation Inner Subloop")
             
@@ -296,9 +305,9 @@ class Interaction:
                 engine.fire_event(IterationEvents.INNER_ITERATION_COMPLETED)
 
         
-        if not True:  #self.train:
+        if not self.train:  #self.train:
             ######################## we will save the image predictions for the deepedit validation ###############################
-            batchdata_val_deepedit = batchdata.copy()
+            batchdata_val_deepedit = copy.deepcopy(batchdata)
             #First we compute the deepgrow based mode validations:
             inputs_val_deepedit, _ = engine.prepare_batch(batchdata_val_deepedit)
             inputs_val_deepedit = inputs_val_deepedit.to(engine.state.device)
@@ -322,13 +331,15 @@ class Interaction:
             #SplitPredsLabel(keys="pred"), 
         
             deepedit_dice = DiceHelper(  # type: ignore
-                include_background=False,
-                reduction=MetricReduction.MEAN, #MetricReduction.MEAN,
-                get_not_nans=False,
-                softmax=False,
-                ignore_empty=True,
-                num_classes=None,
-                )(y_pred=deepedit_discretised_pred.cpu(), y=discretised_label)
+                include_background= False,
+                sigmoid = False,
+                softmax = False, 
+                activate = False,
+                get_not_nans = False,
+                reduction = MetricReduction.MEAN, #MetricReduction.MEAN,
+                ignore_empty = True,
+                num_classes = None
+                )(y_pred=deepedit_discretised_pred.cpu().unsqueeze(dim=0), y=discretised_label.unsqueeze(dim=0))
             
             #deepedit_dice_reduction = do_metric_reduction(deepedit_dice, MetricReduction.MEAN)[0]
 
@@ -339,7 +350,7 @@ class Interaction:
             ################## Saving the metrics #############################
                 
             ############# Appending the metric values to csv file ################# 
-            fields = [float(deepgrow_dice), float(autoseg_dice), float(deepedit_dice)] #[float(deepedit_dice_reduction), float(deepedit_dice_reduction), float(deepedit_dice_reduction)] #    
+            fields = [float(deepgrow_dice[0]), float(autoseg_dice[0]), float(deepedit_dice[0])] #[float(deepedit_dice_reduction), float(deepedit_dice_reduction), float(deepedit_dice_reduction)] #    
             with open(os.path.join(output_dir, 'validation_scores', 'validation.csv'),'a') as f:
                 writer = csv.writer(f)
                 writer.writerow(fields)
