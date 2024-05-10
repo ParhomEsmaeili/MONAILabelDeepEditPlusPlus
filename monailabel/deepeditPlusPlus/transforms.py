@@ -1178,11 +1178,57 @@ class IntensityCorrection(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
-        
         for key in self.key_iterator(d):
             if self.modality == "CT":
                 #TODO: Consider changing this to ScaleIntensity or ScaleIntensityPercentile so that it just does it based off the percentiles in the image..
                 d[key] = ScaleIntensityRange(a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True)(d[key])
             elif self.modality == "MRI":
                 d[key] = ScaleIntensity(minv=0.0, maxv=1.0)(d[key])#b_min=0.0, b_max=1.0, clip=True)(d[key])
+
+            d["preprocessing_original_size"] = [j for i,j in enumerate(d[key].shape) if i != 0]
+
         return d 
+    
+class MappingGuidancePointsd(MapTransform):
+    def __init__(
+        self, keys: KeysCollection, allow_missing_keys: bool = False, original_spatial_size_key:str = None, label_names: dict[str, int] = None, guidance:str="guidance"
+    ):
+        '''
+        Function which maps the guidance points generated from original resolution RAS, to the padded images.
+        '''
+        super().__init__(keys, allow_missing_keys)
+        self.original_spatial_size_key = original_spatial_size_key
+        self.label_names = label_names 
+        self.guidance = guidance
+    
+    def __apply__(self, guidance_point, current_size):
+        pre_padding = [(current_size[i] - self.original_spatial_size[i]) // 2 for i in range(len(current_size))]
+        return [j + pre_padding[i] for i,j in enumerate(guidance_point)] 
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
+        for key in self.key_iterator(d):
+            self.original_spatial_size = d[self.original_spatial_size_key]
+            if key == "image":
+                current_image_size = [j for i,j in enumerate(d[key].shape) if i!=0]
+                #updated_guidance = dict() 
+
+                for label_name in self.label_names.keys():
+                    original_guidance_points = d[label_name]
+                    updated_guidance_points = []
+                    
+                    for guidance_point in original_guidance_points:
+                        updated_guidance_point = self.__apply__(guidance_point, current_size=current_image_size)
+                        updated_guidance_points.append(updated_guidance_point)
+
+                    d[label_name] = updated_guidance_points 
+
+                all_guidances = {}
+                for key_label in self.label_names.keys():
+                    clicks = d.get(key_label, [])
+                    #clicks = list(np.array(clicks).astype(int))
+                    all_guidances[key_label] = clicks#.tolist()
+                d[self.guidance] = all_guidances
+
+                return d
+        

@@ -63,6 +63,8 @@ class DeepEditPlusPlus(BasicTrainTask):
         network,
         original_dataset_labels,
         label_mapping,
+        external_validation_dir,
+        n_saved,
         #extract_channels,
         description="Train DeepEdit model for 3D Images",
         spatial_size=(128, 128, 128),
@@ -79,6 +81,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         self._network = network
         self.original_dataset_labels = original_dataset_labels
         self.label_mapping = label_mapping
+        self.external_validation_dir = external_validation_dir
         #self.cuda_device = cuda_device
         #self.extract_channels = extract_channels
         self.spatial_size = spatial_size
@@ -91,7 +94,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         self.deepedit_probability_val = deepedit_probability_val 
         self.debug_mode = debug_mode
 
-        super().__init__(model_dir, description, **kwargs)
+        super().__init__(model_dir, description, n_saved=n_saved, **kwargs)
 
     def network(self, context: Context):
         return self._network
@@ -202,6 +205,7 @@ class DeepEditPlusPlus(BasicTrainTask):
             transforms=self.get_click_transforms(context),
             click_probability_key="probability",
             train=True,
+            external_validation_output_dir=self.external_validation_dir
             #label_names=self._labels,
         )
 
@@ -213,6 +217,7 @@ class DeepEditPlusPlus(BasicTrainTask):
             transforms=self.get_click_transforms(context),
             click_probability_key="probability",
             train=False,
+            external_validation_output_dir=self.external_validation_dir
             #label_names=self._labels,
         )
 

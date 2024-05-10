@@ -19,7 +19,8 @@ from monailabel.deepeditPlusPlus.transforms import (
     ResizeGuidanceMultipleLabelDeepEditd,
     AddSegmentationInputChannels,
     IntensityCorrection,
-    MappingLabelsInDatasetd
+    MappingLabelsInDatasetd, 
+    MappingGuidancePointsd
 )
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import (
@@ -34,7 +35,7 @@ from monai.transforms import (
     SqueezeDimd,
     ToNumpyd,
     DivisiblePadd,
-    CenterSpatialCropd
+    CenterSpatialCropd,
 )
 
 from monailabel.interfaces.tasks.infer_v2 import InferType
@@ -94,13 +95,9 @@ class DeepEditPlusPlus(BasicInferTask):
         self.divisible_padding_factor = divisible_padding_factor
         self.number_intensity_ch = number_intensity_ch
         self.load_strict = False
-        #self.extract_channels = extract_channels
 
     def pre_transforms(self, data=None):
-        #print(data)
-        #data["imaging_modality"] = "CT"
         if self.type == InferType.DEEPEDIT:
-            #data["previous_seg"] = '/home/parhomesmaeili/Desktop/Label which is in the config file format/OriginalDeepEditDummyOutput.nrrd'
             t = [
                 LoadImaged(keys=["image", "previous_seg"], reader="ITKReader", image_only=False), 
                 #TODO: Previous_seg should ideally be the path to a temporary file that gets generated when the update button is hit?
@@ -108,8 +105,14 @@ class DeepEditPlusPlus(BasicInferTask):
                 Orientationd(keys=["image", "previous_seg"], axcodes="RAS"),
                 #ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
                 IntensityCorrection(keys="image", modality=data["imaging_modality"]),
+                DivisiblePadd(keys=("image", "previous_seg"), k=self.divisible_padding_factor),
+                MappingGuidancePointsd(keys=("image"), original_spatial_size_key="preprocessing_original_size", label_names=self.labels), 
+                #CenterSpatialCropd(keys=("image"),roi_size=self.spatial_size), #Potential issue with inverse if we crop out regions which are non-zero in the image.
                 #MappingLabelsInDatasetd(keys="previous_seg",original_label_names=self.original_dataset_labels, label_names = self.labels, label_mapping=self.label_mapping),
-                AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
+                
+                #Addguidance has been deprecated since we will no longer work with resampling images in the loop:
+                
+                #AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
                 #Resized(keys=["image", "previous_seg"], spatial_size=self.spatial_size, mode=["area", "nearest"]),
                 #ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
                 AddGuidanceSignalDeepEditd(
@@ -125,15 +128,19 @@ class DeepEditPlusPlus(BasicInferTask):
             Orientationd(keys="image", axcodes="RAS"),
             #ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
             IntensityCorrection(keys="image", modality=data["imaging_modality"]),
+            DivisiblePadd(keys=("image"), k=self.divisible_padding_factor),
             ]
             if self.type == InferType.DEEPGROW:
             
                 t.extend(
                     [   
-            
-                        AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
+                        MappingGuidancePointsd(keys="image", original_spatial_size_key="preprocessing_original_size", label_names=self.labels),
+                        #Addguidancefrompoints has been deprecated since we will no longer work with resampling images in the loop:
+
+                        #AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
                         #Resized(keys="image", spatial_size=self.spatial_size, mode="area"),
                         #ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
+
                         AddGuidanceSignalDeepEditd(
                             keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch, label_names = self.labels
                         ),
@@ -151,8 +158,8 @@ class DeepEditPlusPlus(BasicInferTask):
                         AddSegmentationInputChannels(keys="image", number_intensity_ch = self.number_intensity_ch, label_names=self.labels, previous_seg_flag= False),
                     ]
                 )
-        t.append(DivisiblePadd(keys=("image"), k=self.divisible_padding_factor))
-        t.append(CenterSpatialCropd(keys=("image"),roi_size=self.spatial_size)) #Potential issue with inverse if we crop out regions which are non-zero in the image.
+        # t.append(DivisiblePadd(keys=("image"), k=self.divisible_padding_factor))
+        # t.append(CenterSpatialCropd(keys=("image"),roi_size=self.spatial_size)) #Potential issue with inverse if we crop out regions which are non-zero in the image.
         t.append(EnsureTyped(keys="image", device=data.get("device") if data else None))
         return t
 
