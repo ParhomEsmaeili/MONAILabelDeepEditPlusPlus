@@ -172,7 +172,7 @@ class DeepEditPlusPlus(TaskConfig):
         ]
 
         ##################### CHANGE IN PLACE TEMPORARILY FOR THE EXTERNAL VALIDATION METRIC SAVES #####################################################
-        self.external_validation_output_dir = os.path.join(up(up(up(up(up(model_dir))))), 'external_validation', self.datetime_now, self.filename)
+        self.external_validation_output_dir = os.path.join(up(up(up(up(up(os.path.abspath(model_dir)))))), 'external_validation', self.datetime_now, self.filename)
         print(self.external_validation_output_dir)
         print(model_dir)
         output_dir_scores = os.path.join(self.external_validation_output_dir, 'validation_scores')
