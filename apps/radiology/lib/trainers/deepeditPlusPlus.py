@@ -76,6 +76,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         deepgrow_probability_val=0,
         deepedit_probability_val=1.0, #TODO: Why are these probability values for the validation 1.0? This would mean that validation occurs solely on the editing mode.
         debug_mode=False,
+        max_iterations=1,
         **kwargs,
     ):
         self._network = network
@@ -93,6 +94,7 @@ class DeepEditPlusPlus(BasicTrainTask):
         self.deepgrow_probability_val = deepgrow_probability_val
         self.deepedit_probability_val = deepedit_probability_val 
         self.debug_mode = debug_mode
+        self.max_iterations = max_iterations
 
         super().__init__(model_dir, description, n_saved=n_saved, **kwargs)
 
@@ -125,6 +127,7 @@ class DeepEditPlusPlus(BasicTrainTask):
             #
             AddSegmentationInputChannels(keys=["image"], previous_seg_name = "pred", number_intensity_ch = self.number_intensity_ch, label_names= None, previous_seg_flag= True),
             ToTensord(keys=("image", "label")),
+            SelectItemsd(keys=("image", "label", "label_names", "saved_meta")),
         ]
 
     def train_pre_transforms(self, context: Context):
@@ -205,7 +208,8 @@ class DeepEditPlusPlus(BasicTrainTask):
             transforms=self.get_click_transforms(context),
             click_probability_key="probability",
             train=True,
-            external_validation_output_dir=self.external_validation_dir
+            external_validation_output_dir=self.external_validation_dir,
+            max_iterations=self.max_iterations
             #label_names=self._labels,
         )
 
@@ -217,7 +221,8 @@ class DeepEditPlusPlus(BasicTrainTask):
             transforms=self.get_click_transforms(context),
             click_probability_key="probability",
             train=False,
-            external_validation_output_dir=self.external_validation_dir
+            external_validation_output_dir=self.external_validation_dir,
+            max_iterations=self.max_iterations 
             #label_names=self._labels,
         )
 

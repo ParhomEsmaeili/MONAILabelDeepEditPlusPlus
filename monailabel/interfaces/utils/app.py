@@ -34,7 +34,7 @@ def app_instance(app_dir=None, studies=None, conf=None):
         return app
     
     conf = conf if conf else settings.MONAI_LABEL_APP_CONF
-    
+    print(conf)
     logger.info(f"Initializing App from: {app_dir}; studies: {studies}; conf: {conf}")
 
     main_py = os.path.join(app_dir, "main.py")

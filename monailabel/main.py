@@ -46,7 +46,7 @@ class Main:
         parser.add_argument(
             "-c",
             "--conf",
-            nargs=2,
+            nargs='+',
             action="append",
             help="config for the app.  Example: --conf key1 value1 --conf key2 value2",
         )
@@ -298,6 +298,7 @@ class Main:
 
     def start_server_init_settings(self, args):
         # namespace('conf': [['key1','value1'],['key2','value2']])
+        print(args.conf)
         conf = {c[0]: c[1] for c in args.conf} if args.conf else {}
 
         settings.MONAI_LABEL_SERVER_PORT = args.port

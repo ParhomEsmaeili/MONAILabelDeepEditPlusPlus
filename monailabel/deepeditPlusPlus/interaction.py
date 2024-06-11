@@ -54,7 +54,7 @@ class Interaction:
         train: True for training mode or False for evaluation mode
         click_probability_key: key to click/interaction probability
         label_names: Dict of label names
-        max_interactions: maximum number of interactions per iteration
+        max_iterations: maximum number of interaction iterations per training iteration/val iteration sample
     """
 
     def __init__(
@@ -66,7 +66,7 @@ class Interaction:
         train: bool,
         #label_names: None | dict[str, int] = None,
         click_probability_key: str = "probability",
-        max_interactions: int = 1,
+        max_iterations: int = 1,
         external_validation_output_dir:str = None
     ) -> None:
         self.deepgrow_probability = deepgrow_probability
@@ -76,7 +76,7 @@ class Interaction:
         self.train = train
         #self.label_names = label_names
         self.click_probability_key = click_probability_key
-        self.max_interactions = max_interactions
+        self.max_iterations = max_iterations
         self.external_validation_output_dir = external_validation_output_dir 
 
     def __call__(self, engine: SupervisedTrainer | SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
@@ -231,7 +231,7 @@ class Interaction:
         if np.random.choice([True, False], p  = [self.deepedit_probability, 1 - self.deepedit_probability]):
         
             logger.info("Editing mode Inner Subloop")
-            for j in range(self.max_interactions):
+            for j in range(self.max_iterations):
                 inputs, _ = engine.prepare_batch(batchdata)
                 #Next line puts the inputs on the cuda device
                 inputs = inputs.to(engine.state.device)
@@ -287,7 +287,7 @@ class Interaction:
                 logger.info(f'The pre-click transform inputs: Image is on cuda: {batchdata_list[0]["image"].is_cuda}, Label is on cuda {batchdata_list[0]["label"].is_cuda}, Prediction is on cuda {batchdata_list[0]["pred"].is_cuda}')
                 for i in range(len(batchdata_list)):
                     batchdata_list[i][self.click_probability_key] = (
-                        (1.0 - ((1.0 / self.max_interactions) * j)) if self.train else 1.0
+                        (1.0 - ((1.0 / self.max_iterations) * j)) if self.train else 1.0
                     )
                     batchdata_list[i] = self.transforms(batchdata_list[i])
 
@@ -360,8 +360,10 @@ class Interaction:
             nib.save(nib.Nifti1Image(np.array(deepedit_discretised_pred[0].cpu()), None), os.path.join(output_dir, 'validation_images_verif', 'deepedit_discretised_pred_channel_0.nii.gz'))
             nib.save(nib.Nifti1Image(np.array(deepedit_discretised_pred[1].cpu()), None), os.path.join(output_dir, 'validation_images_verif', 'deepedit_discretised_pred_channel_1.nii.gz'))
             
+        
+        
         # first item in batch only
-        # engine.state.batch = batchdata
+        engine.state.batch = batchdata
 
         # inputs, _ = engine.prepare_batch(batchdata)
 
