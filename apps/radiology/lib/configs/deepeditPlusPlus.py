@@ -215,6 +215,7 @@ class DeepEditPlusPlus(TaskConfig):
         self.target_spacing = json.loads(self.conf.get('target_spacing', '[1.0, 1.0, 1.0]'))  # target space for image
         self.spatial_size = json.loads(self.conf.get('spatial_size', '[128, 128, 128]'))  # train input size
         self.divisible_padding_factor = json.loads(self.conf.get('divisible_padding_factor', '[64, 64, 32]'))
+        self.max_iterations = int(self.conf.get('max_iterations','1'))
 
         # self.target_spacing = tuple([float(i) for i in target_spacing_str_list]) 
         # self.spatial_size = tuple([int(i) for i in spatial_size_str_list])
@@ -348,6 +349,7 @@ class DeepEditPlusPlus(TaskConfig):
             config={"pretrained": strtobool(self.conf.get("use_pretrained_model", "true"))},
             labels=self.labels,
             debug_mode=False, #True,
+            max_iterations=self.max_iterations, 
             find_unused_parameters=True,
         )
         return task

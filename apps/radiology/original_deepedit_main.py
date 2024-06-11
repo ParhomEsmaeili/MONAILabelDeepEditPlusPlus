@@ -57,7 +57,7 @@ from monailabel.utils.others.generic import device_list, file_ext
 import nibabel as nib 
 import numpy as np
 import ast
-
+import copy
 
 
 ########## Additional modules and packages for the inference click simulation
@@ -70,13 +70,14 @@ from monai.transforms import (
     Resized,
     DivisiblePadd
 ) 
-from monailabel.deepeditPlusPlus.transforms import (
+from monailabel.deepedit.retooled_transforms import (
     MappingLabelsInDatasetd,
     NormalizeLabelsInDatasetd,
     FindAllValidSlicesMissingLabelsd,
     AddInitialSeedPointMissingLabelsd,
     FindDiscrepancyRegionsDeepEditd,
-    AddRandomGuidanceDeepEditd
+    AddRandomGuidanceDeepEditd,
+    AddRandomGuidanceDeepEditdFixed
 )
 
 from monailabel.transform.writer import Writer 
@@ -310,10 +311,12 @@ def inner_loop_runner(app, request_templates, task_configs, image_info, device, 
     '''
     Args:
     
-    request_templates: the basic templates for the inference requests of the three deepedit ++ modes
+    request_templates: the basic templates for the inference requests of the two deepedit modes
     task_configs: List of the task specific configurations (1) initial_task mode and if appropriate, 2) subsequent mode + 3) no.iters.)
     image_info: List of the image information, (1) image id, (2) image_path to save to(?)
     device: device that is being used to perform inference
+
+    Only TWO actual modes: Autoseg/Interactive Seg-Deepediting. But we will treat the initial deepedit as deepgrow (or conversely, deepedit = extended deepgrow)
     '''
 
     image_id = image_info[0]
@@ -349,13 +352,19 @@ def inner_loop_runner(app, request_templates, task_configs, image_info, device, 
         os.makedirs(guidance_points_save_folder, exist_ok=True) 
 
 
-
         if initial_task == "autoseg":
             res = app.infer(request = initial_request)  #request={"model": args.model, "image": image_id, "device": device})
+            tracked_guidance = dict()
+            for key in label_configs["labels"].keys(): 
+                tracked_guidance[key] = []
+            
+
         elif initial_task == "deepgrow":
-            initial_request, transform_output_dict = click_simulation(initial_request, label_configs, clicking_task = initial_task, gt_path=gt_path)
+            initial_request, transform_output_dict, tracked_guidance = click_simulation(initial_request, label_configs, clicking_task = initial_task, gt_path=gt_path, tracked_guidance=None)
             res = app.infer(request = initial_request)
-                    
+        # Have a saved label for the initial seg, so that we have a measure for how the iterations evolve with accuracy
+            
+            
             #Saving the guidance points (RAS orientation) for debugging the model performance/sanity checking. 
             guidance_points_save = dict()
             for label_name in label_configs["labels"].keys():
@@ -367,7 +376,7 @@ def inner_loop_runner(app, request_templates, task_configs, image_info, device, 
             try:
                 with open(os.path.join(guidance_points_save_folder, initial_task + '.json'), 'r') as f:
                     saved_dict = json.load(f)
-                    saved_dict[image_id] = guidance_points_save 
+                    saved_dict[image_id] = guidance_points_save
                 with open(os.path.join(guidance_points_save_folder, initial_task + '.json'), 'w') as f:
                     json.dump(saved_dict, f)
             except:
@@ -378,20 +387,22 @@ def inner_loop_runner(app, request_templates, task_configs, image_info, device, 
                     json.dump(saved_dict, f)
 
 
-        # Have a saved label for the initial seg, so that we have a measure for how the iterations evolve with accuracy
-
         res_savepath = label_saving(res, os.path.join(output_dir, "labels", initial_task), image_id, image_path)
         
 
+
+
         for i in range(1, num_iterations + 1):
-            #Add the previous seg location to the subsequent requests: TODO: check whether this works, it should point to the location 
-            #of the tmp file which is generated for the original result (see whether this actually yields the desired image)
             
             subsequent_request["previous_seg"] = res_savepath #res["file"]
-
-            # The function which will extract click points given the current instance of the label. TODO:
-            subsequent_request, transform_output_dict, discrepancy_output_dict = click_simulation(subsequent_request, label_configs, clicking_task = subsequent_task, gt_path = gt_path)
+            tracked_guidance_input = copy.deepcopy(tracked_guidance)
+            # The function which will extract click points given the current instance of the label. 
+            subsequent_request, transform_output_dict, discrepancy_output_dict, tracked_guidance = click_simulation(subsequent_request, label_configs, clicking_task = subsequent_task, gt_path = gt_path, tracked_guidance=tracked_guidance_input)
             
+            #Deleting the "previous seg" key:val pair from the request: It is not needed beyond this point.
+            del subsequent_request["previous_seg"]
+
+
             #Saving the guidance points (RAS orientation) for debugging the model performance/sanity checking. 
             guidance_points_save = dict()
             for label_name in label_configs["labels"].keys():
@@ -428,9 +439,8 @@ def inner_loop_runner(app, request_templates, task_configs, image_info, device, 
                         saved_dict[image_id] = guidance_points_save
                         json.dump(saved_dict, f) 
 
-            #guidance_points_save_file = os.path.join(up(up(gt_path)), f'guidance_points_iteration_{i}')
-            #os.makedirs(guidance_points_save_folder, exist_ok=True) 
-            
+
+
 
             ############### Saving the GT labels in RAS orientation for eye inspection #######################
             # save_folder = os.path.join(up(up(gt_path)), 'RAS_GT')
@@ -496,11 +506,16 @@ def inner_loop_runner(app, request_templates, task_configs, image_info, device, 
             res = app.infer(request=input_request)
             
             _ = label_saving(res, os.path.join(output_dir, "labels", "final"), image_id, image_path)
+            
+            tracked_guidance = dict()
+            for key in label_configs["labels"].keys(): 
+                tracked_guidance[key] = []
+
         elif task == "deepgrow":
             #Extracting the path for the GT label that we need to simulate the clicks with:
             gt_path = os.path.join(output_dir, 'labels', 'original', image_id + '.nii.gz')
             
-            input_request, transform_output_dict = click_simulation(input_request, label_configs, clicking_task = task, gt_path = gt_path)
+            input_request, transform_output_dict, tracked_guidance = click_simulation(input_request, label_configs, clicking_task = task, gt_path = gt_path, tracked_guidance=None)
 
             res = app.infer(request=input_request)
             
@@ -524,12 +539,14 @@ def label_saving(inference_res, output_dir, image_id, image_name_path):
     
     return label_file
 
-def click_simulation(inference_request, label_configs, clicking_task, gt_path):
+def click_simulation(inference_request, label_configs, clicking_task, gt_path, tracked_guidance):
     '''
     label_configs contain the dict which contains all the information regarding the label configurations and mappings.
 
     inference request is the dict containing the base structure for the deepedit/deepgrow inference request, without the addition of the 
     click points/guidance points.
+
+    guidance is the previously provided guidance (IF IT HAS ONE!)
     '''
     # labels = label_configs["labels"]
     # original_dataset_labels = label_configs["original_dataset_labels"]
@@ -542,6 +559,10 @@ def click_simulation(inference_request, label_configs, clicking_task, gt_path):
     input_dict["label_mapping"] = label_configs["label_mapping"]
     #GT label path
     input_dict["label"] = gt_path
+
+    #I.e. if we are editing from a deepgrow initialisation
+    if clicking_task == "deepedit":
+        input_dict["guidance"] = tracked_guidance 
 
     if clicking_task == "deepgrow":
         composed_transform = [
@@ -576,7 +597,7 @@ def click_simulation(inference_request, label_configs, clicking_task, gt_path):
             # Transforms for click simulation
         #TODO: verify that using pred = previous_SEG is valid.
         FindDiscrepancyRegionsDeepEditd(keys="label", pred="previous_seg", discrepancy="discrepancy"),
-        AddRandomGuidanceDeepEditd(
+        AddRandomGuidanceDeepEditdFixed(
             keys="NA",
             guidance="guidance",
             discrepancy="discrepancy",
@@ -588,9 +609,13 @@ def click_simulation(inference_request, label_configs, clicking_task, gt_path):
     
     transform_output_dict = Compose(transforms=composed_transform, map_items = False)(input_dict)
     
+    ################### Above generates guidance points which are denoted under the output_dict with the guidance key ######################
+
     
     #Writer(label="label", json=None)(transform_output_dict)
     if clicking_task == "deepedit": 
+
+        ########## This part is solely here to save the discrepancy maps for validation ####################
         discrepancy_resizing_dict = transform_output_dict.copy()
         #Obtaining a list of input keys for each of the classes that we want to save a discrepancy map for
         input_keys = []
@@ -606,24 +631,41 @@ def click_simulation(inference_request, label_configs, clicking_task, gt_path):
         for label_class in transform_output_dict["labels"].keys():
             transform_output_dict[f"discrepancy_{label_class}"] = transform_output_dict["discrepancy"][label_class][0]
             
+        #Save a final guidance separately since this original version of deepedit requires it! 
+        final_guidance = dict()
 
         #Converting the guidance clicks to inputs for the inference script
         for key in transform_output_dict["guidance"].keys():
             sim_clicks = transform_output_dict["guidance"][key]
-            sim_click_valid = [click[1:] for click in sim_clicks if click[0] >= 1]
+            sim_click_valid = []
+            for point in sim_clicks:
+                if len(point) == 3:
+                    sim_click_valid.append(point)
+                else:
+                    if point[0] >=1:
+                        sim_click_valid.append(point[1:])
+
+            #sim_click_valid = [click[1:] for click in sim_clicks if click[0] >= 1]
             inference_request[key] = sim_click_valid
+            final_guidance[key] = sim_click_valid
+
     #    inference_request["guidance"] = transform_output_dict["guidance"]
-            
-        return inference_request, transform_output_dict, discrepancy_output_dict
+        
+
+        return inference_request, transform_output_dict, discrepancy_output_dict, final_guidance
 
     elif clicking_task == "deepgrow":
+        #Save a final guidance separately since this original version of deepedit requires it!
+        final_guidance = dict()
+
         #Converting the guidance clicks to inputs for the inference script
         for key in transform_output_dict["guidance"].keys():
             sim_clicks = ast.literal_eval(transform_output_dict["guidance"][key])
             sim_click_valid = [click[1:] for click in sim_clicks if click[0] >= 1]
             inference_request[key] = sim_click_valid
+            final_guidance[key] = sim_click_valid 
     #    inference_request["guidance"] = transform_output_dict["guidance"]
-        return inference_request, transform_output_dict
+        return inference_request, transform_output_dict, final_guidance
 
 """
 Example to run train/infer/batch infer/scoring task(s) locally without actually running MONAI Label Server
@@ -654,18 +696,18 @@ def main():
     print(base_directory)
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--studies", default = "datasets/BraTS2021_Training_Data_Split_True_proportion_0.8_channels_t2_resized_FLIRT/imagesTs")# #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
-    parser.add_argument("-m", "--model", default="deepeditplusplus")
+    parser.add_argument("-m", "--model", default="deepedit")
     parser.add_argument("-t", "--test", default="infer")#"train") #"batch_infer", choices=("train", "infer", "batch_infer"))
-    parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "autoseg", "3"], help="The subtask/mode which we want to execute")
+    parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "autoseg", "3"], help="The subtask/mode which we want to execute, three modes (one is a pseudo mode: deepgrow=initial_deepedit) ")
     parser.add_argument("-e", "--max_epoch", default="250")
     parser.add_argument("-i", "--imaging_modality", default="MRI") #"CT")
     parser.add_argument("--target_spacing", default='[1,1,1]')
     parser.add_argument("--spatial_size", default='[128,128,128]')
     parser.add_argument("--divisible_padding_factor", default='[64,64,32]')
-    parser.add_argument("--checkpoint")
-    parser.add_argument("--datetime", default='31052024_195641') #TODO Comment this out
-    parser.add_argument("--fold", nargs="+", default=['0', '5'], help="The fold which is designated as the validation, everything else is the train split, second value denotes how many total folds")
-    parser.add_argument("--max_iterations", default='1')
+    parser.add_argument("--checkpoint") #, default='model_epoch=20') #REMOVE THESE DEFAULTS FOR ACTUAL USE AFTER DEBUGGING TODO:
+    parser.add_argument("--datetime", default='02062024_144027') #, default='27052024_123303') #THIS TOO
+    parser.add_argument("--fold", nargs="+", default=['0', '5'], help="The fold which is designated as the validation set, everything else is in the training set, second param = number of total folds.")
+    parser.add_argument("--max_interactions", default='1')
     args = parser.parse_args()
 
     app_dir = up(__file__)
@@ -692,7 +734,7 @@ def main():
             "spatial_size":args.spatial_size,
             "divisible_padding_factor":args.divisible_padding_factor,
             "fold":args.fold,
-            "max_iterations":args.max_iterations 
+            "max_interactions":args.max_interactions
         }
     elif args.test == "infer":
         if args.checkpoint != None:
@@ -749,9 +791,8 @@ def main():
         app = MyApp(app_dir, studies_test_dir, conf)
 
         '''
-        Autoseg request format: Infer Request: {'model': 'deepeditplusplus_seg', 'image': 'spleen_32', 'device': 'NVIDIA GeForce RTX 4090', 'result_extension': '.nrrd', 'result_dtype': 'uint8', 'client_id': 'user-xyz'}
-        Deepedit request format: Infer Request: {'model': 'deepeditplusplus', 'image': 'spleen_32', 'background': [[279, 255, 66]], 'spleen': [], 'label': 'spleen', 'cache_transforms': True, 'cache_transforms_in_memory': True, 'cache_transforms_ttl': 300, 'device': 'NVIDIA GeForce RTX 4090', 'result_extension': '.nrrd', 'result_dtype': 'uint8', 'client_id': 'user-xyz'}
-        Deepgrow request format: BAD: Infer Request: {'model': 'deepeditplusplus_deepgrow', 'image': 'spleen_32', 'label': 'background', 'foreground': [[279, 255, 66], [150, 219, 76], [100, 219, 64], [198, 219, 49]], 'background': [], 'device': 'NVIDIA GeForce RTX 4090', 'result_extension': '.nrrd', 'result_dtype': 'uint8', 'client_id': 'user-xyz'}
+        Autoseg request format: Infer Request: {'model': 'deepedit_autoseg', 'image': 'spleen_32', 'device': 'NVIDIA GeForce RTX 4090', 'result_extension': '.nrrd', 'result_dtype': 'uint8', 'client_id': 'user-xyz'}
+        Deepgrow/Deepedit request format: Infer Request: {'model': 'deepedit', 'image': 'spleen_32', 'background': [[279, 255, 66]], 'spleen': [], 'label': 'spleen', 'cache_transforms': True, 'cache_transforms_in_memory': True, 'cache_transforms_ttl': 300, 'device': 'NVIDIA GeForce RTX 4090', 'result_extension': '.nrrd', 'result_dtype': 'uint8', 'client_id': 'user-xyz'}
         New DeepGrow request format should be the same as Deepedit probably..
         '''
         
@@ -762,8 +803,9 @@ def main():
         request_templates = dict()
 
         request_templates['autoseg_template'] = {'model': args.model + '_autoseg', 'result_dtype': 'uint8', 'imaging_modality':args.imaging_modality,'client_id': 'user-xyz', "restore_label_idx": True}
-        request_templates['deepgrow_template'] = {'model': args.model + '_deepgrow', 'result_dtype': 'uint8', 'imaging_modality':args.imaging_modality, 'client_id': 'user-xyz', "restore_label_idx": True}
+        request_templates['deepgrow_template'] = {'model': args.model, 'result_dtype': 'uint8', 'imaging_modality':args.imaging_modality, 'client_id': 'user-xyz', "restore_label_idx": True}
         request_templates['deepedit_template'] = {'model': args.model, 'result_dtype': 'uint8', 'imaging_modality':args.imaging_modality, 'client_id': 'user-xyz', "restore_label_idx": True}
+
 
         #TODO: MAY NEED TO ADD THIS: 'cache_transforms': True, 'cache_transforms_in_memory': True, 'cache_transforms_ttl': 300 
         ############################################################
@@ -827,14 +869,13 @@ def main():
 
     ########## Joining the subdir/image-labels     
     for pair_dict in val_dataset:
-        pair_dict["image"] = os.path.join(dataset_dir, pair_dict["image"][2:]) + '.nii.gz'
-        pair_dict["label"] = os.path.join(dataset_dir, pair_dict["label"][2:]) + '.nii.gz'
+        pair_dict["image"] = os.path.join(dataset_dir, pair_dict["image"][2:])
+        pair_dict["label"] = os.path.join(dataset_dir, pair_dict["label"][2:])
 
     for pair_dict in training_dataset:
-        pair_dict["image"] = os.path.join(dataset_dir, pair_dict["image"][2:]) + '.nii.gz'
-        pair_dict["label"] = os.path.join(dataset_dir, pair_dict["label"][2:]) + '.nii.gz'
+        pair_dict["image"] = os.path.join(dataset_dir, pair_dict["image"][2:])
+        pair_dict["label"] = os.path.join(dataset_dir, pair_dict["label"][2:])
 
-    #train_dataset = json.loads()
     app.train(
         request={
             "model": args.model,
@@ -857,7 +898,7 @@ def main():
             "local_rank": 0,
             "imaging_modality": args.imaging_modality,
             "train_ds":training_dataset,
-            "val_ds":val_dataset 
+            "val_ds":val_dataset
         },
     )
 

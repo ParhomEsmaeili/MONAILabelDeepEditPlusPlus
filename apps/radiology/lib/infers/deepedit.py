@@ -12,11 +12,19 @@ import logging
 from typing import Callable, Sequence, Union
 
 from lib.transforms.transforms import GetCentroidsd
-from monai.apps.deepedit.transforms import (
-    AddGuidanceFromPointsDeepEditd,
+# from monai.apps.deepedit.transforms import (
+#     AddGuidanceFromPointsDeepEditd,
+#     AddGuidanceSignalDeepEditd,
+#     DiscardAddGuidanced,
+#     ResizeGuidanceMultipleLabelDeepEditd,
+# )
+
+from monailabel.deepedit.retooled_transforms import (
     AddGuidanceSignalDeepEditd,
     DiscardAddGuidanced,
-    ResizeGuidanceMultipleLabelDeepEditd,
+    IntensityCorrection,
+    MappingLabelsInDatasetd,
+    MappingGuidancePointsd
 )
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import (
@@ -30,6 +38,8 @@ from monai.transforms import (
     ScaleIntensityRanged,
     SqueezeDimd,
     ToNumpyd,
+    DivisiblePadd,
+    CenterSpatialCropd,
 )
 
 from monailabel.interfaces.tasks.infer_v2 import InferType
@@ -52,8 +62,9 @@ class DeepEdit(BasicInferTask):
         type=InferType.DEEPEDIT,
         labels=None,
         dimension=3,
-        spatial_size=(128, 128, 64),
+        spatial_size=(128, 128, 128),
         target_spacing=(1.0, 1.0, 1.0),
+        divisible_padding_factor=[128,128,128],
         number_intensity_ch=1,
         description="A DeepEdit model for volumetric (3D) segmentation over 3D Images",
         **kwargs,
@@ -74,6 +85,7 @@ class DeepEdit(BasicInferTask):
 
         self.spatial_size = spatial_size
         self.target_spacing = target_spacing
+        self.divisible_padding_factor = divisible_padding_factor
         self.number_intensity_ch = number_intensity_ch
         self.load_strict = False
 
@@ -82,15 +94,18 @@ class DeepEdit(BasicInferTask):
             LoadImaged(keys="image", reader="ITKReader", image_only=False),
             EnsureChannelFirstd(keys="image"),
             Orientationd(keys="image", axcodes="RAS"),
-            ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
+            #ScaleIntensityRanged(keys="image", a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
+            IntensityCorrection(keys="image", modality=data["imaging_modality"]),
+            DivisiblePadd(keys=("image"), k=self.divisible_padding_factor)
         ]
-        print(self.type)
+    
         if self.type == InferType.DEEPEDIT:
             t.extend(
                 [
-                    AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
-                    Resized(keys="image", spatial_size=self.spatial_size, mode="area"),
-                    ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
+                    #AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=self.labels),
+                    #Resized(keys="image", spatial_size=self.spatial_size, mode="area"),
+                    #ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
+                    MappingGuidancePointsd(keys="image", original_spatial_size_key="preprocessing_original_size", label_names=self.labels),
                     AddGuidanceSignalDeepEditd(
                         keys="image", guidance="guidance", number_intensity_ch=self.number_intensity_ch
                     ),
@@ -99,7 +114,7 @@ class DeepEdit(BasicInferTask):
         else:
             t.extend(
                 [
-                    Resized(keys="image", spatial_size=self.spatial_size, mode="area"),
+                    # Resized(keys="image", spatial_size=self.spatial_size, mode="area"),
                     DiscardAddGuidanced(
                         keys="image", label_names=self.labels, number_intensity_ch=self.number_intensity_ch
                     ),

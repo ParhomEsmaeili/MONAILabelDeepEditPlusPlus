@@ -41,12 +41,14 @@ class Interaction:
     def __init__(
         self,
         deepgrow_probability: float,
+        num_intensity_channel:int,
         transforms: Union[Sequence[Callable], Callable],
         train: bool,
         click_probability_key: str = "probability",
         max_interactions: int = 1,
     ) -> None:
         self.deepgrow_probability = deepgrow_probability
+        self.num_intensity_channel = num_intensity_channel
         self.transforms = Compose(transforms) if not isinstance(transforms, Compose) else transforms
         self.train = train
         self.click_probability_key = click_probability_key
@@ -55,6 +57,8 @@ class Interaction:
     def __call__(self, engine: Union[SupervisedTrainer, SupervisedEvaluator], batchdata: Dict[str, torch.Tensor]):
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
+        
+        label_names = batchdata["label_names"]
 
         if np.random.choice([True, False], p=[self.deepgrow_probability, 1 - self.deepgrow_probability]):
             for j in range(self.max_interactions):
@@ -84,8 +88,9 @@ class Interaction:
         else:
             # zero out input guidance channels
             batchdata_list = decollate_batch(batchdata, detach=True)
-            for i in range(1, len(batchdata_list[0][CommonKeys.IMAGE])):
-                batchdata_list[0][CommonKeys.IMAGE][i] *= 0
+            for k in range(len(batchdata_list)):
+                for i in range(self.num_intensity_channel, self.num_intensity_channel + len(label_names)):
+                    batchdata_list[k][CommonKeys.IMAGE][i] *= 0
             batchdata = list_data_collate(batchdata_list)
 
         # first item in batch only
