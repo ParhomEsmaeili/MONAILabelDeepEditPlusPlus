@@ -129,7 +129,7 @@ class DeepEditPlusPlus(TaskConfig):
         
         
         # Model Files
-
+        
         #Setting the filename automatically based off the settings provided. If not using checkpoint: DEPRECATED_WE SAVE THIS INSTEAD TO A TXT FILE. The models 
         #are kept separate through the use of the datetime!
 
@@ -216,6 +216,40 @@ class DeepEditPlusPlus(TaskConfig):
         self.spatial_size = json.loads(self.conf.get('spatial_size', '[128, 128, 128]'))  # train input size
         self.divisible_padding_factor = json.loads(self.conf.get('divisible_padding_factor', '[64, 64, 32]'))
         self.max_iterations = int(self.conf.get('max_iterations','1'))
+
+        
+        deepgrow_prob_train = self.conf.get("deepgrow_prob_train", "1/2")
+        try: 
+            num, den = deepgrow_prob_train.split('/')
+            self.deepgrow_prob_train = float(num)/float(den)
+        except: 
+            num = deepgrow_prob_train 
+            self.deepgrow_prob_train = float(num)
+
+        deepedit_prob_train = self.conf.get("deepedit_prob_train", "1/3")
+        try: 
+            num, den = deepedit_prob_train.split('/')
+            self.deepedit_prob_train = float(num)/float(den)
+        except: 
+            num = deepedit_prob_train 
+            self.deepedit_prob_train = float(num)
+
+        deepgrow_prob_val = self.conf.get("deepgrow_prob_val", "1")
+        try: 
+            num, den = deepgrow_prob_val.split('/')
+            self.deepgrow_prob_val = float(num)/float(den)
+        except: 
+            num = deepgrow_prob_val 
+            self.deepgrow_prob_val = float(num)
+
+        deepedit_prob_val =  self.conf.get("deepedit_prob_val", "1")
+        try: 
+            num, den = deepedit_prob_val.split('/')
+            self.deepedit_prob_val = float(num)/float(den)
+        except: 
+            num = deepedit_prob_val 
+            self.deepedit_prob_val = float(num)
+    
 
         # self.target_spacing = tuple([float(i) for i in target_spacing_str_list]) 
         # self.spatial_size = tuple([int(i) for i in spatial_size_str_list])
@@ -349,7 +383,11 @@ class DeepEditPlusPlus(TaskConfig):
             config={"pretrained": strtobool(self.conf.get("use_pretrained_model", "true"))},
             labels=self.labels,
             debug_mode=False, #True,
-            max_iterations=self.max_iterations, 
+            max_iterations=self.max_iterations,
+            deepgrow_probability_train = self.deepgrow_prob_train,
+            deepedit_probability_train = self.deepedit_prob_train, 
+            deepgrow_probability_val = self.deepgrow_prob_val, 
+            deepedit_probability_val = self.deepedit_prob_val, 
             find_unused_parameters=True,
         )
         return task

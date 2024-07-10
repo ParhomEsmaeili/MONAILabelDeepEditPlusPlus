@@ -164,6 +164,24 @@ class DeepEdit(TaskConfig):
         self.spatial_size = json.loads(self.conf.get('spatial_size', '[128, 128, 128]'))  # train input size
         self.divisible_padding_factor = json.loads(self.conf.get('divisible_padding_factor', '[64, 64, 32]'))
         self.max_interactions = int(self.conf.get("max_interactions", 1))
+       
+        deepgrow_prob_train = self.conf.get("deepgrow_prob_train", "1/2")
+        try: 
+            num, den = deepgrow_prob_train.split('/')
+            self.deepgrow_prob_train = float(num)/float(den)
+        except: 
+            num = deepgrow_prob_train 
+            self.deepgrow_prob_train = float(num)
+
+        deepgrow_prob_val = self.conf.get("deepgrow_prob_val", "1")
+        try: 
+            num, den = deepgrow_prob_val.split('/')
+            self.deepgrow_prob_val = float(num)/float(den)
+        except: 
+            num = deepgrow_prob_val 
+            self.deepgrow_prob_val = float(num)
+
+
         # Network
         self.network = (
             UNETR(
@@ -277,6 +295,8 @@ class DeepEdit(TaskConfig):
             labels=self.labels,
             debug_mode=False,
             max_interactions=self.max_interactions,
+            deepgrow_probability_train = self.deepgrow_prob_train, 
+            deepgrow_probability_val = self.deepgrow_prob_val, 
             find_unused_parameters=True,
         )
         return task

@@ -505,6 +505,33 @@ def inner_loop_runner(app, request_templates, task_configs, image_info, device, 
             res = app.infer(request=input_request)
             
             _ = label_saving(res, os.path.join(output_dir, "labels", "final"), image_id, image_path)
+
+
+            #Creating a save folder for storing the guidance points in order to debug the performance of the models.
+        
+            guidance_points_save_folder = os.path.join(up(up(gt_path)), f'guidance_points')
+            os.makedirs(guidance_points_save_folder, exist_ok=True) 
+
+            #Saving the guidance points (RAS orientation) for debugging the model performance/sanity checking. 
+            guidance_points_save = dict()
+            for label_name in label_configs["labels"].keys():
+                guidance_points_save[label_name] = input_request[label_name]
+
+
+            try:
+                with open(os.path.join(guidance_points_save_folder,f'final_iteration.json'), 'r') as f:
+                    saved_dict = json.load(f)
+                    saved_dict[image_id] = guidance_points_save
+                with open(os.path.join(guidance_points_save_folder, f'final_iteration.json'), 'w') as f:
+                    json.dump(saved_dict, f) 
+            except:
+                with open(os.path.join(guidance_points_save_folder,f'final_iteration.json'), 'w') as f:
+                    # saved_dict = json.load(f)
+                    saved_dict = dict()
+                    saved_dict[image_id] = guidance_points_save
+                    json.dump(saved_dict, f) 
+
+
     logger.info(f'Inference completed for image: {image_id}')
 
 def label_saving(inference_res, output_dir, image_id, image_name_path):
@@ -653,10 +680,11 @@ def main():
     base_directory = up(up(up(os.path.abspath(__file__))))
     print(base_directory)
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--studies", default = "datasets/BraTS2021_Training_Data_Split_True_proportion_0.8_channels_t2_resized_FLIRT/imagesTs")# #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
+    parser.add_argument("-s", "--studies", default = "datasets/BraTS2021_Training_Data_Split_True_proportion_0.8_channels_t2_resized_FLIRT/imagesTr")# #"datasets/Task09_Spleen/imagesTr") #default= "datasets/Task01_BrainTumour/imagesTr") 
     parser.add_argument("-m", "--model", default="deepeditplusplus")
-    parser.add_argument("-t", "--test", default="infer")#"train") #"batch_infer", choices=("train", "infer", "batch_infer"))
-    parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "autoseg", "3"], help="The subtask/mode which we want to execute")
+    parser.add_argument("-t", "--test", default="train")#"train") #"batch_infer", choices=("train", "infer", "batch_infer"))
+    parser.add_argument('--infer_run', default='0')
+    parser.add_argument("-ta", "--task", nargs="+", default=["deepedit", "deepgrow", "3"], help="The subtask/mode which we want to execute")
     parser.add_argument("-e", "--max_epoch", default="250")
     parser.add_argument("-i", "--imaging_modality", default="MRI") #"CT")
     parser.add_argument("--target_spacing", default='[1,1,1]')
@@ -664,8 +692,17 @@ def main():
     parser.add_argument("--divisible_padding_factor", default='[64,64,32]')
     parser.add_argument("--checkpoint")
     parser.add_argument("--datetime", default='31052024_195641') #TODO Comment this out
-    parser.add_argument("--fold", nargs="+", default=['0', '5'], help="The fold which is designated as the validation, everything else is the train split, second value denotes how many total folds")
+    parser.add_argument("--val_fold", default='0', help="The fold which is designated as the validation, everything else is the train split, second value denotes how many total folds")
+    parser.add_argument("--train_folds", nargs='+', default=['1', '2', '3', '4'])
     parser.add_argument("--max_iterations", default='1')
+    parser.add_argument("--deepgrow_prob_train", default='1/2')
+    parser.add_argument("--deepedit_prob_train", default="1/3")
+    parser.add_argument("--deepgrow_prob_val", default="1")
+    parser.add_argument("--deepedit_prob_val", default="1")
+    # self.deepgrow_probability_train = deepgrow_probability_train
+    #     self.deepedit_probability_train = deepedit_probability_train
+    #     self.deepgrow_probability_val = deepgrow_probability_val
+    #     self.deepedit_probability_val = deepedit_probability_val 
     args = parser.parse_args()
 
     app_dir = up(__file__)
@@ -691,9 +728,15 @@ def main():
             "target_spacing":args.target_spacing,
             "spatial_size":args.spatial_size,
             "divisible_padding_factor":args.divisible_padding_factor,
-            "fold":args.fold,
-            "max_iterations":args.max_iterations 
+            "val_fold":args.val_fold,
+            "train_folds":args.train_folds,
+            "max_iterations":args.max_iterations,
+            "deepgrow_prob_train":args.deepgrow_prob_train,
+            "deepedit_prob_train":args.deepedit_prob_train,
+            "deepgrow_prob_val":args.deepgrow_prob_val,
+            "deepedit_prob_val":args.deepedit_prob_val 
         }
+
     elif args.test == "infer":
         if args.checkpoint != None:
             conf = {
@@ -740,7 +783,7 @@ def main():
         model_checkpoint = args.checkpoint if args.checkpoint != None else 'best_val_score_epoch'
         
         print(model_checkpoint)
-        studies_test_dir = os.path.join(studies[:-9], args.model, studies[-8:] + f"_{task_name}", model_version, model_checkpoint)
+        studies_test_dir = os.path.join(studies[:-9], args.model, studies[-8:] + f"_{task_name}", model_version, model_checkpoint, f'run_{args.infer_run}')
         #Create a separate folder copy for the subtask (more compatible with the current datastore object and methods)
         if os.path.exists(studies_test_dir):
             shutil.rmtree(studies_test_dir)
@@ -815,15 +858,15 @@ def main():
 
     ########## Loading in the list of train/val images #######################
     dataset_dir = os.path.join(base_directory, args.studies[:-9])
-    val_fold = args.fold[0]
-    num_folds = args.fold[1]
+    val_fold = args.val_fold
+    train_folds = args.train_folds
     with open(os.path.join(dataset_dir, "train_val_split_dataset.json")) as f:
         dictionary_setting = json.load(f)
         val_dataset = dictionary_setting[f"fold_{val_fold}"]
         training_dataset = []
-        for i in range(int(num_folds)):
-            if i != int(val_fold):
-                training_dataset += dictionary_setting[f"fold_{i}"]
+        for i in train_folds:
+            # if i != int(val_fold):
+            training_dataset += dictionary_setting[f"fold_{i}"]
 
     ########## Joining the subdir/image-labels     
     for pair_dict in val_dataset:

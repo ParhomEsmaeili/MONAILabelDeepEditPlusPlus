@@ -98,10 +98,10 @@ class DeepEditPlusPlus(BasicInferTask):
 
     def pre_transforms(self, data=None):
         # #Hacky check in the UI
-        if "imaging_modality" not in data:
-            data["imaging_modality"] = "MRI"
-        if "previous_seg" not in data:
-            data["previous_seg"] = "/home/parhomesmaeili/Desktop/BraTS2021_01620.nii.gz"    
+        # if "imaging_modality" not in data:
+        #     data["imaging_modality"] = "MRI"
+        # if "previous_seg" not in data:
+        #     data["previous_seg"] = "/home/parhomesmaeili/Desktop/BraTS2021_01620.nii.gz"    
         if self.type == InferType.DEEPEDIT:
             t = [
                 LoadImaged(keys=["image", "previous_seg"], reader="ITKReader", image_only=False), 

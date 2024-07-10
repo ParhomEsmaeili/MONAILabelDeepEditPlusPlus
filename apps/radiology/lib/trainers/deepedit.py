@@ -104,7 +104,7 @@ class DeepEdit(BasicTrainTask):
         divisible_padding_factor=[128,128,128],
         target_spacing=(1.0, 1.0, 1.0),
         number_intensity_ch=1,
-        deepgrow_probability_train=0.4,
+        deepgrow_probability_train=0.5,
         deepgrow_probability_val=1.0,
         max_interactions=1,
         debug_mode=False,
