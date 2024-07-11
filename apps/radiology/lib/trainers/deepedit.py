@@ -260,7 +260,7 @@ class DeepEdit(BasicTrainTask):
         )
         for key_label in self._labels:
             if key_label != "background":
-                all_metrics[key_label + "_dice"] = MeanDice(
+                all_metrics["val_" + key_label + "_dice"] = MeanDice(
                     output_transform=from_engine(["pred_" + key_label, "label_" + key_label]), include_background=False
                 )
         return all_metrics

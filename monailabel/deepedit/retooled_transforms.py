@@ -25,7 +25,7 @@ from monai.data import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.utils import min_version, optional_import
-from monai.transforms import ScaleIntensityRange, ScaleIntensityRangePercentiles, ScaleIntensity
+from monai.transforms import ScaleIntensityRange, ScaleIntensityRangePercentiles, ScaleIntensity, NormalizeIntensity
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -1138,7 +1138,7 @@ class IntensityCorrection(MapTransform):
                 d[key] = ScaleIntensityRange(a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True)(d[key])
             elif self.modality == "MRI":
                 d[key] = ScaleIntensity(minv=0.0, maxv=1.0)(d[key])#b_min=0.0, b_max=1.0, clip=True)(d[key])
-
+                # d[key] = NormalizeIntensity()(d[key])
             d["preprocessing_original_size"] = [j for i,j in enumerate(d[key].shape) if i != 0]
 
         return d 
